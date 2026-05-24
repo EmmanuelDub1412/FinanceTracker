@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
 import './styles.css';
-import {
-  LayoutDashboard, Wallet, ArrowLeftRight, Target,
-  Calculator, Settings as SettingsIcon, TrendingUp, RefreshCw
-} from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
-import SetupWizard  from './components/SetupWizard';
-import SheetConnect from './components/SheetConnect';
-import Dashboard    from './components/Dashboard';
-import Accounts     from './components/Accounts';
-import Transactions from './components/Transactions';
-import Savings      from './components/Savings';
+import SetupWizard   from './components/SetupWizard';
+import SheetConnect  from './components/SheetConnect';
+import Dashboard     from './components/Dashboard';
+import Accounts      from './components/Accounts';
+import Transactions  from './components/Transactions';
+import Savings       from './components/Savings';
 import LoanSimulator from './components/LoanSimulator';
-import Settings     from './components/Settings';
+import Settings      from './components/Settings';
 
 const getClientId = () => localStorage.getItem('ft_client_id') || '';
 
@@ -22,7 +19,7 @@ const NAV = [
   {id:'transactions', label:'Transactions',        Icon:ArrowLeftRight,  group:'main'},
   {id:'savings',      label:'Épargne & Objectifs', Icon:Target,          group:'planning'},
   {id:'loan',         label:'Simulateur de Prêt',  Icon:Calculator,      group:'planning'},
-  {id:'settings',     label:'Paramètres',          Icon:SettingsIcon,    group:'system'},
+  {id:'settings',     label:'Paramètres',          Icon:Cog,             group:'system'},
 ];
 const GROUPS = {main:'PRINCIPAL', planning:'PLANIFICATION', system:'SYSTÈME'};
 
@@ -38,20 +35,20 @@ export default function App() {
   if (ft.authState==='loading') return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
       <div style={{textAlign:'center'}}>
-        <div style={{fontFamily:'var(--fd)',fontSize:'1.6rem',marginBottom:12,color:'var(--text)'}}>
+        <div style={{fontSize:'1.6rem',fontWeight:800,marginBottom:16,color:'var(--text)',fontFamily:'var(--fd)'}}>
           Fin<em style={{color:'var(--g1)',fontStyle:'normal'}}>Track</em>
         </div>
         <RefreshCw size={20} style={{color:'var(--text3)',animation:'spin 1s linear infinite'}}/>
-        <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+        <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>
   );
 
-  if (ft.authState==='setup' && !ft.user) return <SetupWizard
+  if (!ft.user) return <SetupWizard
     onClientIdSaved={id=>{localStorage.setItem('ft_client_id',id);setClientId(id);}}
     onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
 
-  if (ft.authState==='setup' && ft.user) return <SheetConnect
+  if (ft.authState==='setup') return <SheetConnect
     user={ft.user} onConnect={ft.connectSheet} onCreate={ft.createNewSheet}
     onLogout={ft.logout} loading={ft.loading} error={ft.error}/>;
 
@@ -61,19 +58,18 @@ export default function App() {
     <div className="shell">
       <header className="topbar">
         <div className="logo">
-          <TrendingUp size={22} style={{color:'var(--g1)'}}/>
+          <TrendingUp size={20} style={{color:'var(--g1)'}}/>
           Fin<em>Track</em>
-          <span className="logo-badge">Haiti</span>
         </div>
-        {ft.syncing && <RefreshCw size={14} className="syncing-dot" style={{animation:'spin 1s linear infinite',background:'transparent',borderRadius:0,width:'auto',height:'auto'}}/>}
+        {ft.syncing && <div className="syncing-dot"/>}
         {ft.error && (
-          <div style={{fontSize:12,color:'var(--red)',background:'var(--red-bg)',padding:'5px 12px',borderRadius:6,border:'1px solid rgba(255,82,82,.2)',cursor:'pointer',display:'flex',alignItems:'center',gap:6}} onClick={()=>ft.setError(null)}>
-            ⚠ {ft.error.slice(0,60)}… ✕
+          <div onClick={()=>ft.setError(null)} style={{fontSize:12,color:'var(--red)',background:'var(--red-bg)',padding:'5px 12px',borderRadius:6,border:'1px solid rgba(229,62,62,.2)',cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+            ⚠ {ft.error.slice(0,50)}… ✕
           </div>
         )}
         <div className="topbar-right">
           <div className="rate-chip">
-            <ArrowLeftRight size={12}/>
+            <ArrowLeftRight size={11}/>
             1 USD = <b>{ft.settings?.usdToHtg||130} HTG</b>
           </div>
           <span className="user-name" onClick={()=>setPage('settings')}>
@@ -97,9 +93,9 @@ export default function App() {
           );
         })}
         <div className="nav-sheet-info">
-          <div style={{marginBottom:4,color:'var(--text3)',fontSize:10,letterSpacing:1,textTransform:'uppercase'}}>Google Sheet</div>
+          <div style={{marginBottom:3,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'var(--text3)'}}>Google Sheet</div>
           <a href={`https://docs.google.com/spreadsheets/d/${ft.spreadsheetId}/edit`} target="_blank" rel="noreferrer">
-            {ft.spreadsheetId?.slice(0,24)}…
+            {ft.spreadsheetId?.slice(0,22)}…
           </a>
         </div>
       </nav>
