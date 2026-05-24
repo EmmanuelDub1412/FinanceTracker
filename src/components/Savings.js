@@ -1,15 +1,35 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Target, Plus, Pencil, Trash2, PlusCircle, TrendingUp, Calendar, DollarSign } from 'lucide-react';
-import { fmtHTG, fmt, compoundSavings, today } from '../utils/finance';
+import { Target, Plus, Pencil, Trash2, PlusCircle, TrendingUp, Calendar, Home, Plane, GraduationCap, Car, Heart, Diamond, Palmtree, Briefcase, Smartphone, Dumbbell, Music, Building, Gift } from 'lucide-react';
+import { fmtHTG, fmt, compoundSavings } from '../utils/finance';
 
-const GOAL_ICONS = ['🏠','✈️','🎓','🚗','💊','💍','🌴','💼','📱','🏋️'];
+const GOAL_TYPES = [
+  { id:'savings', Icon:Building,      label:'Épargne générale' },
+  { id:'home',    Icon:Home,          label:'Logement'         },
+  { id:'travel',  Icon:Plane,         label:'Voyage'           },
+  { id:'edu',     Icon:GraduationCap, label:'Éducation'        },
+  { id:'car',     Icon:Car,           label:'Véhicule'         },
+  { id:'health',  Icon:Heart,         label:'Santé'            },
+  { id:'wedding', Icon:Diamond,       label:'Mariage'          },
+  { id:'leisure', Icon:Palmtree,      label:'Loisirs'          },
+  { id:'biz',     Icon:Briefcase,     label:'Affaires'         },
+  { id:'tech',    Icon:Smartphone,    label:'Technologie'      },
+  { id:'sport',   Icon:Dumbbell,      label:'Sport'            },
+  { id:'music',   Icon:Music,         label:'Musique'          },
+  { id:'gift',    Icon:Gift,          label:'Cadeau'           },
+];
+
+function GoalIcon({ type, size=20, ...rest }) {
+  const found = GOAL_TYPES.find(g=>g.id===type)||GOAL_TYPES[0];
+  const { Icon } = found;
+  return <Icon size={size} {...rest}/>;
+}
 
 function SavingsModal({ goal, onSave, onClose }) {
   const [form, setForm] = useState(goal || {
-    name:'', targetAmount:'', currentAmount:'',
-    currency:'HTG', targetDate:'', monthlyContrib:'',
-    annualRate:'5', notes:'', icon:'🏦',
+    name:'', targetAmount:'', currentAmount:'0',
+    currency:'HTG', targetDate:'', monthlyContrib:'0',
+    annualRate:'5', notes:'', iconType:'savings',
   });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -22,11 +42,18 @@ function SavingsModal({ goal, onSave, onClose }) {
         </div>
         <div className="fgrid">
           <div className="fg">
-            <label className="fl">Icône</label>
-            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-              {['🏦',...GOAL_ICONS].map(ic=>(
-                <button key={ic} onClick={()=>set('icon',ic)} style={{width:36,height:36,borderRadius:8,border:`2px solid ${form.icon===ic?'var(--g1)':'var(--border)'}`,background:form.icon===ic?'var(--g-bg)':'var(--bg3)',fontSize:17,cursor:'pointer',transition:'all .1s'}}>
-                  {ic}
+            <label className="fl">Type d'objectif</label>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:6}}>
+              {GOAL_TYPES.map(({id,Icon,label})=>(
+                <button key={id} title={label} onClick={()=>set('iconType',id)} style={{
+                  width:'100%',aspectRatio:'1',borderRadius:8,
+                  border:`2px solid ${form.iconType===id?'var(--g1)':'var(--border)'}`,
+                  background:form.iconType===id?'var(--g-bg)':'var(--bg3)',
+                  color:form.iconType===id?'var(--g1)':'var(--text3)',
+                  cursor:'pointer',transition:'all .1s',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                }}>
+                  <Icon size={16}/>
                 </button>
               ))}
             </div>
@@ -45,11 +72,13 @@ function SavingsModal({ goal, onSave, onClose }) {
           </div>
           <div className="frow">
             <div className="fg"><label className="fl">Date cible</label><input className="fi" type="date" value={form.targetDate} onChange={e=>set('targetDate',e.target.value)}/></div>
-            <div className="fg"><label className="fl">Taux annuel (%)</label><input className="fi" type="number" value={form.annualRate} onChange={e=>set('annualRate',e.target.value)} placeholder="5"/></div>
+            <div className="fg"><label className="fl">Taux annuel (%)</label><input className="fi" type="number" value={form.annualRate} onChange={e=>set('annualRate',e.target.value)}/></div>
           </div>
           <div className="flex g8" style={{justifyContent:'flex-end'}}>
             <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button className="btn btn-primary" onClick={()=>{if(form.name&&form.targetAmount)onSave({...form,targetAmount:Number(form.targetAmount),currentAmount:Number(form.currentAmount)||0,monthlyContrib:Number(form.monthlyContrib)||0});}}>{goal?'Enregistrer':'Créer'}</button>
+            <button className="btn btn-primary" onClick={()=>{if(form.name&&form.targetAmount)onSave({...form,targetAmount:Number(form.targetAmount),currentAmount:Number(form.currentAmount)||0,monthlyContrib:Number(form.monthlyContrib)||0});}}>
+              {goal?'Enregistrer':'Créer'}
+            </button>
           </div>
         </div>
       </div>
@@ -63,17 +92,14 @@ function DepositModal({ goal, onSave, onClose }) {
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{maxWidth:380}}>
         <div className="modal-hd">
-          <div className="modal-ttl"><PlusCircle size={18} style={{color:'var(--g1)'}}/>{goal.name} — Ajouter des fonds</div>
+          <div className="modal-ttl"><PlusCircle size={18} style={{color:'var(--g1)'}}/> Ajouter des fonds — {goal.name}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="fgrid">
-          <div className="fg">
-            <label className="fl">Montant ({goal.currency})</label>
-            <input className="fi" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus/>
-          </div>
+          <div className="fg"><label className="fl">Montant ({goal.currency})</label><input className="fi" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus/></div>
           <div className="flex g8" style={{justifyContent:'flex-end'}}>
             <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button className="btn btn-primary" onClick={()=>{if(amount){onSave(Number(amount));onClose();}}}>Ajouter</button>
+            <button className="btn btn-primary" onClick={()=>{if(amount){onSave(Number(amount));onClose();}}}>Confirmer</button>
           </div>
         </div>
       </div>
@@ -82,15 +108,15 @@ function DepositModal({ goal, onSave, onClose }) {
 }
 
 export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
-  const [showModal,   setShowModal]   = useState(false);
-  const [editing,     setEditing]     = useState(null);
-  const [depositing,  setDepositing]  = useState(null);
-  const [selected,    setSelected]    = useState(null);
+  const [showModal,  setShowModal]  = useState(false);
+  const [editing,    setEditing]    = useState(null);
+  const [depositing, setDepositing] = useState(null);
+  const [selected,   setSelected]   = useState(null);
 
   const enriched = useMemo(()=>savings.map(g=>{
     const pct = Math.min(100,((Number(g.currentAmount)||0)/(Number(g.targetAmount)||1))*100);
     const remaining = Math.max(0,(Number(g.targetAmount)||0)-(Number(g.currentAmount)||0));
-    const proj = compoundSavings(Number(g.currentAmount)||0, Number(g.monthlyContrib)||0, Number(g.annualRate)||0, 36);
+    const proj = compoundSavings(Number(g.currentAmount)||0,Number(g.monthlyContrib)||0,Number(g.annualRate)||0,36);
     const reachMonth = proj.findIndex(p=>p.balance>=(Number(g.targetAmount)||0));
     return {...g,pct,remaining,proj,reachMonth};
   }),[savings]);
@@ -106,7 +132,7 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
   return (
     <div>
       <div className="ph">
-        <div><div className="pt">Épargne & Objectifs</div><div className="ps">Définissez vos cibles et projetez votre progression</div></div>
+        <div><div className="pt">Épargne & Objectifs</div><div className="ps">Définissez vos cibles et suivez votre progression</div></div>
         <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}><Plus size={15}/> Nouvel Objectif</button>
       </div>
 
@@ -118,13 +144,15 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
           <button className="btn btn-primary" onClick={()=>setShowModal(true)}><Plus size={15}/> Créer un objectif</button>
         </div>
       ) : (
-        <div className={selected?'two':''}  style={!selected?{display:'grid',gap:14}:{}}>
+        <div className={selected?'two':''} style={!selected?{display:'grid',gap:14}:{}}>
           <div style={{display:'grid',gap:14}}>
             {enriched.map(g=>(
               <div key={g.id} className={`sv-card ${selected===g.id?'sel':''}`} onClick={()=>setSelected(selected===g.id?null:g.id)}>
                 <div className="fb" style={{marginBottom:12}}>
                   <div className="flex g12">
-                    <div style={{width:44,height:44,borderRadius:10,background:'var(--g-bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>{g.icon||'🏦'}</div>
+                    <div style={{width:44,height:44,borderRadius:10,background:'var(--g-bg)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <GoalIcon type={g.iconType||'savings'} size={22} color="var(--g1)"/>
+                    </div>
                     <div>
                       <div style={{fontWeight:700,fontSize:14}}>{g.name}</div>
                       <div style={{fontSize:12,color:'var(--text2)',marginTop:1}}>Objectif : {fmt(Number(g.targetAmount)||0,g.currency)}</div>
@@ -132,7 +160,7 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                   </div>
                   <div style={{textAlign:'right'}}>
                     <div style={{fontSize:'1.2rem',fontWeight:800,color:g.pct>=100?'var(--g1)':'var(--text)'}}>{Math.round(g.pct)}%</div>
-                    <div style={{fontSize:11,color:'var(--text3)'}}>{g.pct>=100?'Atteint ✓':`${fmt(g.remaining,g.currency)} restant`}</div>
+                    <div style={{fontSize:11,color:'var(--text3)'}}>{g.pct>=100?'Objectif atteint ✓':`${fmt(g.remaining,g.currency)} restant`}</div>
                   </div>
                 </div>
                 <div className="prog-track" style={{height:6,marginBottom:8}}>
@@ -144,14 +172,14 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                   {g.targetDate&&<span style={{display:'flex',alignItems:'center',gap:3}}><Calendar size={11}/>{new Date(g.targetDate).toLocaleDateString('fr-FR',{month:'short',year:'numeric'})}</span>}
                 </div>
                 {g.reachMonth>=0&&g.pct<100&&(
-                  <div style={{marginTop:10,padding:'7px 10px',background:'var(--g-bg)',borderRadius:7,fontSize:12,color:'var(--g1)',fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
-                    <TrendingUp size={13}/> Objectif atteint dans ~{g.reachMonth+1} mois
+                  <div style={{marginTop:10,padding:'7px 12px',background:'var(--g-bg)',borderRadius:7,fontSize:12,color:'var(--g1)',fontWeight:600,border:'1px solid var(--g-light)',display:'flex',alignItems:'center',gap:6}}>
+                    <TrendingUp size={13}/> Objectif atteint dans ~{g.reachMonth+1} mois avec intérêts
                   </div>
                 )}
                 <div className="flex g8 mt12" onClick={e=>e.stopPropagation()}>
                   <button className="btn btn-primary btn-sm" onClick={()=>setDepositing(g)}><Plus size={12}/> Ajouter</button>
                   <button className="btn btn-ghost btn-sm" onClick={()=>{setEditing(g);setShowModal(true);}}><Pencil size={12}/> Modifier</button>
-                  <button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm('Supprimer ?'))onDelete(g.id);}}><Trash2 size={12}/></button>
+                  <button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm('Supprimer cet objectif ?'))onDelete(g.id);}}><Trash2 size={12}/></button>
                 </div>
               </div>
             ))}
@@ -166,13 +194,13 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
                   {[
-                    {label:'Actuel',value:fmt(Number(selectedGoal.currentAmount)||0,selectedGoal.currency),color:'var(--text)'},
+                    {label:'Épargné',value:fmt(Number(selectedGoal.currentAmount)||0,selectedGoal.currency),color:'var(--text)'},
                     {label:'Objectif',value:fmt(Number(selectedGoal.targetAmount)||0,selectedGoal.currency),color:'var(--g1)'},
                     {label:'Restant',value:fmt(selectedGoal.remaining,selectedGoal.currency),color:'var(--red)'},
                     {label:'Taux',value:`${selectedGoal.annualRate||0}%/an`,color:'var(--teal)'},
                   ].map(({label,value,color})=>(
-                    <div key={label} style={{background:'var(--bg3)',borderRadius:8,padding:'10px 12px'}}>
-                      <div style={{fontSize:11,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{label}</div>
+                    <div key={label} style={{background:'var(--bg3)',borderRadius:8,padding:'10px 12px',border:'1px solid var(--border)'}}>
+                      <div style={{fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{label}</div>
                       <div style={{fontWeight:700,color,fontSize:'1rem'}}>{value}</div>
                     </div>
                   ))}
@@ -191,7 +219,7 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                 </div>
                 {selectedGoal.reachMonth>=0&&(
                   <div style={{marginTop:12,padding:'10px 14px',background:'var(--g-bg)',borderRadius:8,fontSize:13,color:'var(--g1)',fontWeight:600,border:'1px solid var(--g-light)'}}>
-                    Avec {fmt(Number(selectedGoal.monthlyContrib)||0,selectedGoal.currency)}/mois à {selectedGoal.annualRate||0}%, vous atteignez votre objectif en {selectedGoal.reachMonth+1} mois.
+                    Avec {fmt(Number(selectedGoal.monthlyContrib)||0,selectedGoal.currency)}/mois à {selectedGoal.annualRate||0}%, objectif atteint en {selectedGoal.reachMonth+1} mois.
                   </div>
                 )}
               </div>
