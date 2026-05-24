@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Target, Plus, Pencil, Trash2, PlusCircle, TrendingUp, Calendar, Home, Plane, GraduationCap, Car, Heart, Diamond, Palmtree, Briefcase, Smartphone, Dumbbell, Music, Building, Gift } from 'lucide-react';
+import { Target, Plus, Pencil, Trash2, PlusCircle, TrendingUp, Calendar, Home, Plane, GraduationCap, Car, Heart, Gem, Umbrella, Briefcase, Smartphone, Dumbbell, Music, Building, Gift } from 'lucide-react';
 import { fmtHTG, fmt, compoundSavings } from '../utils/finance';
 
 const GOAL_TYPES = [
@@ -10,8 +10,8 @@ const GOAL_TYPES = [
   { id:'edu',     Icon:GraduationCap, label:'Éducation'        },
   { id:'car',     Icon:Car,           label:'Véhicule'         },
   { id:'health',  Icon:Heart,         label:'Santé'            },
-  { id:'wedding', Icon:Diamond,       label:'Mariage'          },
-  { id:'leisure', Icon:Palmtree,      label:'Loisirs'          },
+  { id:'wedding', Icon:Gem,       label:'Mariage'          },
+  { id:'leisure', Icon:Umbrella,      label:'Loisirs'          },
   { id:'biz',     Icon:Briefcase,     label:'Affaires'         },
   { id:'tech',    Icon:Smartphone,    label:'Technologie'      },
   { id:'sport',   Icon:Dumbbell,      label:'Sport'            },

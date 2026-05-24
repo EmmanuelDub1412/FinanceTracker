@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Building2, CreditCard, Banknote, PiggyBank, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Building2, CreditCard, Banknote, PiggyBank, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { fmtHTG, fmtUSD, fmt, toHTG, computeBalance, ACCOUNT_TYPES, getAccType } from '../utils/finance';
 
 const TYPE_ICONS = {

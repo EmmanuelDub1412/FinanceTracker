@@ -54,6 +54,8 @@ export default function useFinTrack(clientId) {
     if (!sheetId) return;
     setSyncing(true);
     try {
+      // Re-init to ensure all tabs exist before reading
+      await db.init(sheetId);
       const [accs, txs, savs] = await Promise.all([
         db.readAll('accounts'),
         db.readAll('transactions'),
@@ -61,7 +63,7 @@ export default function useFinTrack(clientId) {
       ]);
       const usdRate = await db.getSetting('usdToHtg');
       setAccounts(accs.filter(a => a.id));
-      setTransactions(txs.filter(t => t.id).sort((a,b) => b.date.localeCompare(a.date)));
+      setTransactions(txs.filter(t => t.id).sort((a,b) => String(b.date||'').localeCompare(String(a.date||''))));
       setSavings(savs.filter(s => s.id));
       if (usdRate) setSettings(s => ({ ...s, usdToHtg: Number(usdRate) }));
     } catch(e) {
