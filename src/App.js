@@ -61,7 +61,7 @@ export default function App() {
         </button>
         <div className="logo" style={{fontWeight:800}}>
           <TrendingUp size={20} style={{color:'var(--g1)'}}/>
-          Fin<em style={{fontStyle:'normal'}}>Track</em>
+          <span>Fin<em style={{fontStyle:'normal'}}>Track</em></span>
         </div>
         {ft.syncing && <div className="syncing-dot"/>}
         {ft.error && (
