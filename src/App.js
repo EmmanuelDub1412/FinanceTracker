@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './styles.css';
 import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
+import { useLanguage } from './i18n/LanguageContext';
 import LoginScreen  from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
 import Dashboard     from './components/Dashboard';
@@ -12,19 +13,20 @@ import LoanSimulator from './components/LoanSimulator';
 import InvestmentSimulator from './components/InvestmentSimulator';
 import Settings      from './components/Settings';
 const NAV = [
-  {id:'dashboard',    label:'Tableau de Bord',    Icon:LayoutDashboard, group:'main'},
-  {id:'accounts',     label:'Mes Comptes',         Icon:Wallet,          group:'main'},
-  {id:'transactions', label:'Transactions',        Icon:ArrowLeftRight,  group:'main'},
-  {id:'savings',      label:'Épargne & Objectifs', Icon:Target,          group:'planning'},
-  {id:'loan',         label:'Simulateur de Prêt',  Icon:Calculator,      group:'planning'},
-  {id:'investment',   label:'Simulation de Placement', Icon:PiggyBank,   group:'planning'},
-  {id:'settings',     label:'Paramètres',          Icon:Cog,             group:'system'},
+  {id:'dashboard',    labelKey:'nav.dashboard',    Icon:LayoutDashboard, group:'main'},
+  {id:'accounts',     labelKey:'nav.accounts',     Icon:Wallet,          group:'main'},
+  {id:'transactions', labelKey:'nav.transactions', Icon:ArrowLeftRight,  group:'main'},
+  {id:'savings',      labelKey:'nav.savings',      Icon:Target,          group:'planning'},
+  {id:'loan',         labelKey:'nav.loan',         Icon:Calculator,      group:'planning'},
+  {id:'investment',   labelKey:'nav.investment',   Icon:PiggyBank,       group:'planning'},
+  {id:'settings',     labelKey:'nav.settings',     Icon:Cog,             group:'system'},
 ];
-const GROUPS = {main:'PRINCIPAL', planning:'PLANIFICATION', system:'SYSTÈME'};
 export default function App() {
   const [page, setPage] = useState('dashboard');
   const [navOpen, setNavOpen] = useState(false);
   const ft = useFinTrack();
+  const { t, lang, toggleLang } = useLanguage();
+  const GROUPS = {main:t('nav.group_main'), planning:t('nav.group_planning'), system:t('nav.group_system')};
   // Lien "mot de passe oublie" clique depuis l'email : Firebase redirige ici
   // avec ?mode=resetPassword&oobCode=... au lieu de sa page generique.
   const urlParams = new URLSearchParams(window.location.search);
@@ -68,6 +70,9 @@ export default function App() {
           </div>
         )}
         <div className="topbar-right">
+          <button className="lang-toggle" onClick={toggleLang} title="FR / EN">
+            {lang.toUpperCase()}
+          </button>
           <div className="rate-chip">
             <ArrowLeftRight size={11}/>
             1 USD = <b>{ft.settings?.usdToHtg||130} HTG</b>
@@ -80,14 +85,14 @@ export default function App() {
       </header>
       <div className={`sidebar-backdrop ${navOpen?'open':''}`} onClick={()=>setNavOpen(false)}/>
       <nav className={`sidebar ${navOpen?'open':''}`}>
-        {NAV.map(({id,label,Icon,group})=>{
+        {NAV.map(({id,labelKey,Icon,group})=>{
           const sg=!renderedGroups.includes(group);
           if(sg) renderedGroups.push(group);
           return (
             <React.Fragment key={id}>
               {sg && <div className="nav-group-label">{GROUPS[group]}</div>}
               <div className={`nav-item ${page===id?'active':''}`} onClick={()=>{setPage(id);setNavOpen(false);}}>
-                <Icon size={16}/>{label}
+                <Icon size={16}/>{t(labelKey)}
               </div>
             </React.Fragment>
           );
