@@ -15,7 +15,7 @@ export default function Settings({ user, settings, onSave, onLogout }) {
         <div><div className="pt">Paramètres</div><div className="ps">Configuration de FinTrack</div></div>
       </div>
       <div className="card mb16">
-        <div className="card-hd"><div className="card-title">👤 Compte Google</div></div>
+        <div className="card-hd"><div className="card-title">👤 Compte</div></div>
         <div className="flex g12" style={{alignItems:'center',marginBottom:16}}>
           <img src={user?.picture||user?.photoURL} alt="" style={{width:52,height:52,borderRadius:'50%',border:'2px solid var(--gold2)'}}/>
           <div>
@@ -43,8 +43,6 @@ export default function Settings({ user, settings, onSave, onLogout }) {
         <div className="card-hd"><div className="card-title">🔒 Confidentialité</div></div>
         <div style={{fontSize:13,color:'var(--text2)',lineHeight:2}}>
           <div>• Vos données sont isolées par compte, personne d'autre n'y a accès</div>
-          <div>• La connexion se fait uniquement via votre compte Google, sans mot de passe séparé</div>
-          <div>• L'app est hébergée sur GitHub Pages</div>
         </div>
       </div>
     </div>
