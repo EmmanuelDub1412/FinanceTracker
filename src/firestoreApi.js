@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import {
   signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth, googleProvider, db as firestore } from './firebase';
 
@@ -125,6 +126,37 @@ export const signInWithGoogle = async () => {
 export const signOutUser = async () => {
   db.clearCache();
   await firebaseSignOut(auth);
+};
+
+// ── Auth Email/Mot de passe (alternative a Google) ──────────────────────────
+export const signInWithEmail = async (email, password) => {
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  return result.user;
+};
+
+export const signUpWithEmail = async (email, password) => {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  return result.user;
+};
+
+export const resetPassword = async (email) => {
+  await sendPasswordResetEmail(auth, email);
+};
+
+// Traduit les codes d'erreur Firebase en messages lisibles en francais.
+export const authErrorMessage = (e) => {
+  const code = e?.code || '';
+  const map = {
+    'auth/email-already-in-use': 'Cet email est deja utilise par un compte.',
+    'auth/invalid-email': 'Adresse email invalide.',
+    'auth/weak-password': 'Mot de passe trop court (6 caracteres minimum).',
+    'auth/user-not-found': 'Aucun compte trouve avec cet email.',
+    'auth/wrong-password': 'Mot de passe incorrect.',
+    'auth/invalid-credential': 'Email ou mot de passe incorrect.',
+    'auth/too-many-requests': 'Trop de tentatives, reessaie dans quelques minutes.',
+    'auth/missing-password': 'Entre un mot de passe.',
+  };
+  return map[code] || e?.message || 'Erreur inconnue.';
 };
 
 // S'abonne aux changements de connexion (connexion, deconnexion, session

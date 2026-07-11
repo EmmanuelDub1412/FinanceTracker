@@ -36,7 +36,11 @@ export default function App() {
     </div>
   );
   if (!ft.user) return <LoginScreen
-    onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
+    onLogin={()=>ft.login()}
+    onLoginEmail={(email,pw)=>ft.loginWithEmail(email,pw)}
+    onSignUp={(email,pw)=>ft.signUp(email,pw)}
+    onForgotPassword={(email)=>ft.forgotPassword(email)}
+    gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
   const renderedGroups = [];
   return (
     <div className="shell">

@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { db, genId, signInWithGoogle, signOutUser, subscribeToAuth } from '../firestoreApi';
+import {
+  db, genId, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword,
+  authErrorMessage, signOutUser, subscribeToAuth,
+} from '../firestoreApi';
 // ─────────────────────────────────────────────────────────────────────────────
 // Central hook: manages auth state + all CRUD against Firestore.
 // (Anciennement base sur Google Sheets — voir sheetsApi.js pour l'ancienne
@@ -85,6 +88,39 @@ export default function useFinTrack() {
       setLoading(false);
     }
   }, []);
+  // ── Sign in / sign up with email + password ─────────────────────────────
+  const loginWithEmail = useCallback(async (email, password) => {
+    try {
+      setError(null);
+      setLoading(true);
+      await signInWithEmail(email, password);
+    } catch(e) {
+      setError(authErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  const signUp = useCallback(async (email, password) => {
+    try {
+      setError(null);
+      setLoading(true);
+      await signUpWithEmail(email, password);
+    } catch(e) {
+      setError(authErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  const forgotPassword = useCallback(async (email) => {
+    try {
+      setError(null);
+      await resetPassword(email);
+      return true;
+    } catch(e) {
+      setError(authErrorMessage(e));
+      return false;
+    }
+  }, []);
   // ── Sign out ───────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     await signOutUser();
@@ -121,7 +157,7 @@ export default function useFinTrack() {
   };
   return {
     // auth
-    authState, user, gapiReady: true, login, logout,
+    authState, user, gapiReady: true, login, loginWithEmail, signUp, forgotPassword, logout,
     // data
     accounts, transactions, savings, settings,
     loading, syncing, error, refresh,
