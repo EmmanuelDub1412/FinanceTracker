@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import './styles.css';
-import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
 import LoginScreen  from './components/LoginScreen';
-import MigrationTool from './components/MigrationTool';
 import Dashboard     from './components/Dashboard';
 import Accounts      from './components/Accounts';
 import Transactions  from './components/Transactions';
@@ -23,6 +22,7 @@ const NAV = [
 const GROUPS = {main:'PRINCIPAL', planning:'PLANIFICATION', system:'SYSTÈME'};
 export default function App() {
   const [page, setPage] = useState('dashboard');
+  const [navOpen, setNavOpen] = useState(false);
   const ft = useFinTrack();
   if (ft.authState==='loading') return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
@@ -37,11 +37,13 @@ export default function App() {
   );
   if (!ft.user) return <LoginScreen
     onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
-  if (page === 'migration') return <MigrationTool onClose={() => { setPage('settings'); ft.refresh(); }}/>;
   const renderedGroups = [];
   return (
     <div className="shell">
       <header className="topbar">
+        <button className="menu-toggle" onClick={()=>setNavOpen(v=>!v)} aria-label="Menu">
+          <Menu size={22}/>
+        </button>
         <div className="logo" style={{fontWeight:800}}>
           <TrendingUp size={20} style={{color:'var(--g1)'}}/>
           Fin<em style={{fontStyle:'normal'}}>Track</em>
@@ -63,14 +65,15 @@ export default function App() {
           <img className="avatar" src={ft.user?.picture||ft.user?.photoURL} alt="" onClick={()=>setPage('settings')}/>
         </div>
       </header>
-      <nav className="sidebar">
+      <div className={`sidebar-backdrop ${navOpen?'open':''}`} onClick={()=>setNavOpen(false)}/>
+      <nav className={`sidebar ${navOpen?'open':''}`}>
         {NAV.map(({id,label,Icon,group})=>{
           const sg=!renderedGroups.includes(group);
           if(sg) renderedGroups.push(group);
           return (
             <React.Fragment key={id}>
               {sg && <div className="nav-group-label">{GROUPS[group]}</div>}
-              <div className={`nav-item ${page===id?'active':''}`} onClick={()=>setPage(id)}>
+              <div className={`nav-item ${page===id?'active':''}`} onClick={()=>{setPage(id);setNavOpen(false);}}>
                 <Icon size={16}/>{label}
               </div>
             </React.Fragment>
@@ -84,7 +87,7 @@ export default function App() {
         {page==='savings'      && <Savings      savings={ft.savings} onAdd={ft.addSaving} onUpdate={ft.updateSaving} onDelete={ft.deleteSaving}/>}
         {page==='loan'         && <LoanSimulator settings={ft.settings}/>}
         {page==='investment'   && <InvestmentSimulator settings={ft.settings}/>}
-        {page==='settings'     && <Settings     user={ft.user} settings={ft.settings} onSave={ft.saveSetting} onLogout={ft.logout} onOpenMigration={() => setPage('migration')}/>}
+        {page==='settings'     && <Settings     user={ft.user} settings={ft.settings} onSave={ft.saveSetting} onLogout={ft.logout}/>}
       </main>
     </div>
   );
