@@ -1,20 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, Filter, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { fmtHTG, fmt, toHTG, today, CATEGORIES, getCat } from '../utils/finance';
+import { useLanguage } from '../i18n/LanguageContext';
 
-const TYPE_CONFIG = {
-  income:   { label:'Revenu',    Icon:ArrowDownCircle, cls:'on-income',   color:'var(--g1)' },
-  expense:  { label:'Dépense',   Icon:ArrowUpCircle,   cls:'on-expense',  color:'var(--red)' },
-  transfer: { label:'Transfert', Icon:ArrowLeftRight,  cls:'on-transfer', color:'var(--teal)' },
-  savings:  { label:'Épargne',   Icon:PiggyBank,       cls:'on-savings',  color:'var(--purple)' },
-};
-const STATUS_CONFIG = {
-  confirmed: { label:'Confirmé',   cls:'bg-green', Icon:CheckCircle },
-  pending:   { label:'En attente', cls:'bg-amber',  Icon:Clock },
-  cancelled: { label:'Annulé',     cls:'bg-red',    Icon:XCircle },
-};
+const TYPE_ICON = { income: ArrowDownCircle, expense: ArrowUpCircle, transfer: ArrowLeftRight, savings: PiggyBank };
+const TYPE_CLS  = { income: 'on-income', expense: 'on-expense', transfer: 'on-transfer', savings: 'on-savings' };
+const STATUS_CLS = { confirmed: 'bg-green', pending: 'bg-amber', cancelled: 'bg-red' };
+const STATUS_ICON = { confirmed: CheckCircle, pending: Clock, cancelled: XCircle };
 
 function TxModal({ tx, accounts, onSave, onClose }) {
+  const { t, tId } = useLanguage();
   const [form, setForm] = useState(tx || {
     date:today(), description:'', category:'DEP-ALI', txType:'expense',
     debitAccount:'', creditAccount:'', amount:'', currency:'HTG',
@@ -33,45 +28,48 @@ function TxModal({ tx, accounts, onSave, onClose }) {
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{maxWidth:560}}>
         <div className="modal-hd">
-          <div className="modal-ttl"><ArrowLeftRight size={18} style={{color:'var(--g1)'}}/>{tx?'Modifier la transaction':'Nouvelle Transaction'}</div>
+          <div className="modal-ttl"><ArrowLeftRight size={18} style={{color:'var(--g1)'}}/>{tx?t('transactions.edit'):t('transactions.add')}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 
         <div className="type-grid" style={{marginBottom:20}}>
-          {Object.entries(TYPE_CONFIG).map(([id,{label,Icon,cls}])=>(
-            <button key={id} className={`type-btn ${form.txType===id?cls:''}`}
-              onClick={()=>{set('txType',id);set('category',CATEGORIES.find(c=>c.type===id)?.id||'');}}>
-              <Icon size={16}/>{label}
-            </button>
-          ))}
+          {Object.keys(TYPE_ICON).map(id=>{
+            const Icon = TYPE_ICON[id];
+            return (
+              <button key={id} className={`type-btn ${form.txType===id?TYPE_CLS[id]:''}`}
+                onClick={()=>{set('txType',id);set('category',CATEGORIES.find(c=>c.type===id)?.id||'');}}>
+                <Icon size={16}/>{t(`txType.${id}`)}
+              </button>
+            );
+          })}
         </div>
 
         <div className="fgrid">
           <div className="frow">
             <div className="fg">
-              <label className="fl">Date *</label>
+              <label className="fl">{t('transactions.date')} *</label>
               <input className="fi" type="date" value={form.date} onChange={e=>set('date',e.target.value)}/>
             </div>
             <div className="fg">
-              <label className="fl">Catégorie</label>
+              <label className="fl">{t('transactions.category')}</label>
               <select className="fs" value={form.category} onChange={e=>set('category',e.target.value)}>
-                {filteredCats.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+                {filteredCats.map(c=><option key={c.id} value={c.id}>{tId('categories',c.id,c.label)}</option>)}
               </select>
             </div>
           </div>
 
           <div className="fg">
-            <label className="fl">Description *</label>
-            <input className="fi" value={form.description} onChange={e=>set('description',e.target.value)} placeholder="Description de la transaction"/>
+            <label className="fl">{t('transactions.description')} *</label>
+            <input className="fi" value={form.description} onChange={e=>set('description',e.target.value)} placeholder={t('transactions.descPh')}/>
           </div>
 
           <div className="frow">
             <div className="fg">
-              <label className="fl">Montant *</label>
+              <label className="fl">{t('transactions.amount')} *</label>
               <input className="fi" type="number" value={form.amount} onChange={e=>set('amount',e.target.value)} placeholder="0"/>
             </div>
             <div className="fg">
-              <label className="fl">Devise</label>
+              <label className="fl">{t('transactions.currency')}</label>
               <select className="fs" value={form.currency} onChange={e=>set('currency',e.target.value)}>
                 <option value="HTG">HTG</option>
                 <option value="USD">USD</option>
@@ -82,27 +80,27 @@ function TxModal({ tx, accounts, onSave, onClose }) {
           {form.txType==='transfer' ? (
             <div className="frow">
               <div className="fg">
-                <label className="fl">Compte Source</label>
+                <label className="fl">{t('transactions.sourceAcc')}</label>
                 <select className="fs" value={form.debitAccount} onChange={e=>set('debitAccount',e.target.value)}>
-                  <option value="">Sélectionner</option>
+                  <option value="">{t('transactions.select')}</option>
                   {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
               <div className="fg">
-                <label className="fl">Compte Destination</label>
+                <label className="fl">{t('transactions.destAcc')}</label>
                 <select className="fs" value={form.creditAccount} onChange={e=>set('creditAccount',e.target.value)}>
-                  <option value="">Sélectionner</option>
+                  <option value="">{t('transactions.select')}</option>
                   {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
             </div>
           ) : (
             <div className="fg">
-              <label className="fl">{form.txType==='income'?'Crédité sur':'Débité de'}</label>
+              <label className="fl">{form.txType==='income'?t('transactions.creditedTo'):t('transactions.debitedFrom')}</label>
               <select className="fs"
                 value={form.txType==='income'?form.creditAccount:form.debitAccount}
                 onChange={e=>form.txType==='income'?set('creditAccount',e.target.value):set('debitAccount',e.target.value)}>
-                <option value="">Sélectionner un compte</option>
+                <option value="">{t('transactions.selectAcc')}</option>
                 {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
@@ -110,23 +108,23 @@ function TxModal({ tx, accounts, onSave, onClose }) {
 
           <div className="frow">
             <div className="fg">
-              <label className="fl">Statut</label>
+              <label className="fl">{t('transactions.status')}</label>
               <select className="fs" value={form.status} onChange={e=>set('status',e.target.value)}>
-                <option value="confirmed">Confirmé</option>
-                <option value="pending">En attente</option>
-                <option value="cancelled">Annulé</option>
+                <option value="confirmed">{t('status.confirmed')}</option>
+                <option value="pending">{t('status.pending')}</option>
+                <option value="cancelled">{t('status.cancelled')}</option>
               </select>
             </div>
             <div className="fg">
-              <label className="fl">Bénéficiaire / Tiers</label>
-              <input className="fi" value={form.beneficiary||''} onChange={e=>set('beneficiary',e.target.value)} placeholder="Optionnel"/>
+              <label className="fl">{t('transactions.beneficiary')}</label>
+              <input className="fi" value={form.beneficiary||''} onChange={e=>set('beneficiary',e.target.value)} placeholder={t('transactions.optional')}/>
             </div>
           </div>
 
           <div className="flex g8" style={{justifyContent:'flex-end',marginTop:4}}>
-            <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+            <button className="btn btn-ghost" onClick={onClose}>{t('transactions.cancel')}</button>
             <button className="btn btn-primary" onClick={()=>{if(form.description&&form.amount)onSave({...form,amount:Number(form.amount)});}}>
-              {tx?'Enregistrer':'Ajouter'}
+              {tx?t('transactions.save'):t('transactions.add_')}
             </button>
           </div>
         </div>
@@ -136,6 +134,7 @@ function TxModal({ tx, accounts, onSave, onClose }) {
 }
 
 export default function Transactions({ transactions, accounts, settings, onAdd, onUpdate, onDelete }) {
+  const { t, tId, lang } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing,   setEditing]   = useState(null);
   const [search,    setSearch]    = useState('');
@@ -160,46 +159,46 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
   }),[filtered,rate]);
 
   const handleSave = (data)=>{ editing?onUpdate(editing.id,data):onAdd(data); setShowModal(false);setEditing(null); };
-  const fmtDate = d=>{if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
+  const fmtDate = d=>{if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
 
   return (
     <div>
       <div className="ph">
         <div>
-          <div className="pt">Transactions</div>
-          <div className="ps">{filtered.length} transaction{filtered.length>1?'s':''}</div>
+          <div className="pt">{t('transactions.title')}</div>
+          <div className="ps">{filtered.length} {t('dashboard.transactions')}</div>
         </div>
         <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}>
-          <Plus size={15}/> Nouvelle Transaction
+          <Plus size={15}/> {t('transactions.new')}
         </button>
       </div>
 
       <div className="kpi-grid mb16">
-        <div className="kpi"><div className="kpi-accent green"><ArrowDownCircle size={18}/></div><div className="kpi-lbl">Revenus</div><div className="kpi-val green">{fmtHTG(totals.income)}</div></div>
-        <div className="kpi"><div className="kpi-accent" style={{background:'var(--red-bg)',color:'var(--red)'}}><ArrowUpCircle size={18}/></div><div className="kpi-lbl">Dépenses</div><div className="kpi-val red">{fmtHTG(totals.expense)}</div></div>
-        <div className={`kpi`}><div className={`kpi-accent ${totals.income-totals.expense>=0?'teal':''}`} style={totals.income-totals.expense<0?{background:'var(--red-bg)',color:'var(--red)'}:{}}><TrendingUp size={18}/></div><div className="kpi-lbl">Net</div><div className={`kpi-val ${totals.income-totals.expense>=0?'teal':'red'}`}>{fmtHTG(totals.income-totals.expense)}</div></div>
+        <div className="kpi"><div className="kpi-accent green"><ArrowDownCircle size={18}/></div><div className="kpi-lbl">{t('transactions.income')}</div><div className="kpi-val green">{fmtHTG(totals.income)}</div></div>
+        <div className="kpi"><div className="kpi-accent" style={{background:'var(--red-bg)',color:'var(--red)'}}><ArrowUpCircle size={18}/></div><div className="kpi-lbl">{t('transactions.expense')}</div><div className="kpi-val red">{fmtHTG(totals.expense)}</div></div>
+        <div className={`kpi`}><div className={`kpi-accent ${totals.income-totals.expense>=0?'teal':''}`} style={totals.income-totals.expense<0?{background:'var(--red-bg)',color:'var(--red)'}:{}}><TrendingUp size={18}/></div><div className="kpi-lbl">{t('transactions.net')}</div><div className={`kpi-val ${totals.income-totals.expense>=0?'teal':'red'}`}>{fmtHTG(totals.income-totals.expense)}</div></div>
       </div>
 
       <div className="card mb16" style={{padding:14}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto auto',gap:10,alignItems:'center'}}>
           <div style={{position:'relative'}}>
             <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--text3)'}}/>
-            <input className="fi" placeholder="Rechercher..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:32}}/>
+            <input className="fi" placeholder={t('transactions.search')} value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:32}}/>
           </div>
           <select className="fs" value={filterType} onChange={e=>setFilterType(e.target.value)} style={{width:140}}>
-            <option value="all">Tous les types</option>
-            <option value="income">Revenus</option>
-            <option value="expense">Dépenses</option>
-            <option value="transfer">Transferts</option>
-            <option value="savings">Épargne</option>
+            <option value="all">{t('transactions.allTypes')}</option>
+            <option value="income">{t('transactions.income')}</option>
+            <option value="expense">{t('transactions.expense')}</option>
+            <option value="transfer">{t('txType.transfer')}</option>
+            <option value="savings">{t('txType.savings')}</option>
           </select>
           <input className="fi" type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={{width:150}}/>
           <select className="fs" value={filterAcc} onChange={e=>setFilterAcc(e.target.value)} style={{width:160}}>
-            <option value="">Tous les comptes</option>
+            <option value="">{t('transactions.allAccounts')}</option>
             {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           {(search||filterType!=='all'||filterMonth||filterAcc)&&(
-            <button className="btn btn-ghost btn-sm" onClick={()=>{setSearch('');setFilterType('all');setFilterMonth('');setFilterAcc('');}}>Réinitialiser</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setSearch('');setFilterType('all');setFilterMonth('');setFilterAcc('');}}>{t('transactions.reset')}</button>
           )}
         </div>
       </div>
@@ -209,18 +208,18 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
           <table>
             <thead>
               <tr>
-                <th>Date</th><th>Description</th><th>Catégorie</th>
-                <th>Compte</th><th style={{textAlign:'right'}}>Montant</th>
-                <th>Statut</th><th></th>
+                <th>{t('transactions.col_date')}</th><th>{t('transactions.col_desc')}</th><th>{t('transactions.col_cat')}</th>
+                <th>{t('transactions.col_acc')}</th><th style={{textAlign:'right'}}>{t('transactions.col_amount')}</th>
+                <th>{t('transactions.col_status')}</th><th></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length===0
-                ? <tr><td colSpan={7} style={{textAlign:'center',padding:'40px',color:'var(--text3)'}}>Aucune transaction trouvée</td></tr>
+                ? <tr><td colSpan={7} style={{textAlign:'center',padding:'40px',color:'var(--text3)'}}>{t('transactions.noneFound')}</td></tr>
                 : filtered.map(tx=>{
-                    const cat=getCat(tx.category);
+                    const catLabel=tId('categories',tx.category,getCat(tx.category).label);
                     const isIn=tx.txType==='income';
-                    const sc=STATUS_CONFIG[tx.status]||STATUS_CONFIG.confirmed;
+                    const StatusIcon=STATUS_ICON[tx.status]||STATUS_ICON.confirmed;
                     const accName=accMap[tx.txType==='income'?tx.creditAccount:tx.debitAccount]||'—';
                     const amtHTG=toHTG(Number(tx.amount),tx.currency,rate);
                     return (
@@ -230,17 +229,17 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
                           <div style={{fontWeight:600,fontSize:13}}>{tx.description}</div>
                           {tx.beneficiary&&<div style={{fontSize:11,color:'var(--text3)'}}>{tx.beneficiary}</div>}
                         </td>
-                        <td><span style={{fontSize:12,color:'var(--text2)',fontWeight:500}}>{cat.label}</span></td>
+                        <td><span style={{fontSize:12,color:'var(--text2)',fontWeight:500}}>{catLabel}</span></td>
                         <td style={{fontSize:12,color:'var(--text2)'}}>{accName}</td>
                         <td className={`tr ${isIn?'tx-in':tx.txType==='transfer'?'tx-tr':'tx-out'}`} style={{fontWeight:700,fontSize:13}}>
                           {isIn?'+':tx.txType==='transfer'?'':'-'}{fmtHTG(amtHTG)}
                           {tx.currency==='USD'&&<div style={{fontSize:10,fontWeight:500,color:'var(--text3)'}}>{fmt(Number(tx.amount),'USD')}</div>}
                         </td>
-                        <td><span className={`badge ${sc.cls}`}>{sc.label}</span></td>
+                        <td><span className={`badge ${STATUS_CLS[tx.status]||STATUS_CLS.confirmed}`}>{t(`status.${tx.status||'confirmed'}`)}</span></td>
                         <td>
                           <div className="flex g8">
                             <button className="btn btn-ghost btn-sm" onClick={()=>{setEditing(tx);setShowModal(true);}}><Pencil size={12}/></button>
-                            <button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm('Supprimer ?'))onDelete(tx.id);}}><Trash2 size={12}/></button>
+                            <button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm(t('transactions.deleteConfirm')))onDelete(tx.id);}}><Trash2 size={12}/></button>
                           </div>
                         </td>
                       </tr>

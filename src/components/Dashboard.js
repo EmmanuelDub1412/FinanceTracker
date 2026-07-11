@@ -1,11 +1,14 @@
 import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, Scale, Wallet, ArrowRight } from 'lucide-react';
-import { fmtHTG, fmtUSD, toHTG, computeBalance, MONTHS_FR, getCat } from '../utils/finance';
+import { fmtHTG, fmtUSD, toHTG, computeBalance, getCat } from '../utils/finance';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const PIE_COLORS = ['#00C853','#2979FF','#00BFA5','#FFB300','#FF5252','#AA00FF','#FF6D00'];
 
 export default function Dashboard({ accounts, transactions, savings, settings, onNav }) {
+  const { t, tId, lang } = useLanguage();
+  const MONTHS = t('months');
   const rate = Number(settings?.usdToHtg)||130;
   const now  = new Date();
 
@@ -26,20 +29,20 @@ export default function Dashboard({ accounts, transactions, savings, settings, o
     const m=d.getMonth(),y=d.getFullYear();
     const txs=transactions.filter(t=>{const td=new Date(t.date);return td.getMonth()===m&&td.getFullYear()===y&&t.status==='confirmed';});
     return {
-      name:MONTHS_FR[m],
+      name:MONTHS[m],
       income:txs.filter(t=>t.txType==='income').reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),
       expense:txs.filter(t=>t.txType==='expense').reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),
     };
-  }),[transactions,rate,now]);
+  }),[transactions,rate,now,MONTHS]);
 
   const catData = useMemo(()=>{
     const map={};
     thisMonth.filter(t=>t.txType==='expense').forEach(t=>{
-      const k=getCat(t.category).label;
+      const k=tId('categories',t.category,getCat(t.category).label);
       map[k]=(map[k]||0)+toHTG(Number(t.amount),t.currency,rate);
     });
     return Object.entries(map).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value).slice(0,6);
-  },[thisMonth,rate]);
+  },[thisMonth,rate,tId]);
 
   const TT = ({active,payload,label})=>{
     if(!active||!payload?.length) return null;
@@ -50,41 +53,41 @@ export default function Dashboard({ accounts, transactions, savings, settings, o
     <div>
       <div className="ph">
         <div>
-          <div className="pt">Tableau de Bord</div>
-          <div className="ps">{now.toLocaleDateString('fr-HT',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+          <div className="pt">{t('dashboard.title')}</div>
+          <div className="ps">{now.toLocaleDateString(lang==='en'?'en-US':'fr-HT',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
         </div>
         <button className="btn btn-primary" onClick={()=>onNav('transactions')}>
-          <ArrowUpCircle size={15}/> Nouvelle Transaction
+          <ArrowUpCircle size={15}/> {t('dashboard.newTx')}
         </button>
       </div>
 
       <div className="kpi-grid">
         <div className="kpi green">
-          <div className="kpi-lbl"><Wallet size={11}/> Patrimoine Net</div>
+          <div className="kpi-lbl"><Wallet size={11}/> {t('dashboard.netWorth')}</div>
           <div className="kpi-val green">{fmtHTG(totalNet)}</div>
-          <div className="kpi-sub">{accounts.length} compte{accounts.length>1?'s':''}</div>
+          <div className="kpi-sub">{accounts.length} {accounts.length>1?t('dashboard.accounts'):t('dashboard.account')}</div>
           <div className="kpi-ico"><TrendingUp size={52}/></div>
         </div>
         <div className="kpi teal">
-          <div className="kpi-lbl"><ArrowDownCircle size={11}/> Revenus ce mois</div>
+          <div className="kpi-lbl"><ArrowDownCircle size={11}/> {t('dashboard.incomeMonth')}</div>
           <div className="kpi-val teal">{fmtHTG(income)}</div>
-          <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='income').length} transactions</div>
+          <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='income').length} {t('dashboard.transactions')}</div>
         </div>
         <div className="kpi red">
-          <div className="kpi-lbl"><ArrowUpCircle size={11}/> Dépenses ce mois</div>
+          <div className="kpi-lbl"><ArrowUpCircle size={11}/> {t('dashboard.expenseMonth')}</div>
           <div className="kpi-val red">{fmtHTG(expense)}</div>
-          <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='expense').length} transactions</div>
+          <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='expense').length} {t('dashboard.transactions')}</div>
         </div>
         <div className={`kpi ${netMonth>=0?'green':'red'}`}>
-          <div className="kpi-lbl"><Scale size={11}/> Solde Net du Mois</div>
+          <div className="kpi-lbl"><Scale size={11}/> {t('dashboard.netMonth')}</div>
           <div className={`kpi-val ${netMonth>=0?'green':'red'}`}>{fmtHTG(netMonth)}</div>
-          <div className="kpi-sub">{income>0?Math.round(expense/income*100):0}% du revenu dépensé</div>
+          <div className="kpi-sub">{income>0?Math.round(expense/income*100):0}{t('dashboard.pctSpent')}</div>
         </div>
       </div>
 
       <div className="twoW mb24">
         <div className="card">
-          <div className="card-hd"><div className="card-title">Flux des 6 derniers mois</div></div>
+          <div className="card-hd"><div className="card-title">{t('dashboard.flow6')}</div></div>
           <div style={{height:220}}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:0}}>
@@ -95,16 +98,16 @@ export default function Dashboard({ accounts, transactions, savings, settings, o
                 <XAxis dataKey="name" stroke="#3D6B50" fontSize={11} tickLine={false} axisLine={false}/>
                 <YAxis stroke="#3D6B50" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`${Math.round(v/1000)}k`}/>
                 <Tooltip content={<TT/>}/>
-                <Area type="monotone" dataKey="income"  name="Revenus"  stroke="#00C853" strokeWidth={2} fill="url(#gi)"/>
-                <Area type="monotone" dataKey="expense" name="Dépenses" stroke="#FF5252" strokeWidth={2} fill="url(#ge)"/>
+                <Area type="monotone" dataKey="income"  name={t('dashboard.income')}  stroke="#00C853" strokeWidth={2} fill="url(#gi)"/>
+                <Area type="monotone" dataKey="expense" name={t('dashboard.expense')} stroke="#FF5252" strokeWidth={2} fill="url(#ge)"/>
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="card">
-          <div className="card-hd"><div className="card-title">Dépenses par catégorie</div></div>
+          <div className="card-hd"><div className="card-title">{t('dashboard.byCategory')}</div></div>
           {catData.length===0
-            ? <div className="empty" style={{padding:'20px 0'}}><div className="empty-ico"><TrendingDown size={36}/></div><div className="empty-txt">Aucune dépense ce mois</div></div>
+            ? <div className="empty" style={{padding:'20px 0'}}><div className="empty-ico"><TrendingDown size={36}/></div><div className="empty-txt">{t('dashboard.noExpense')}</div></div>
             : <>
                 <div style={{height:130}}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -127,15 +130,15 @@ export default function Dashboard({ accounts, transactions, savings, settings, o
       <div className="two">
         <div className="card">
           <div className="card-hd">
-            <div className="card-title">Transactions récentes</div>
+            <div className="card-title">{t('dashboard.recentTx')}</div>
             <button className="btn btn-ghost btn-sm" onClick={()=>onNav('transactions')}>
-              Voir tout <ArrowRight size={12}/>
+              {t('dashboard.seeAll')} <ArrowRight size={12}/>
             </button>
           </div>
           {transactions.slice(0,6).length===0
-            ? <div className="empty" style={{padding:'20px 0'}}><div className="empty-ico"><ArrowLeftRight size={36}/></div><div className="empty-txt">Aucune transaction</div></div>
+            ? <div className="empty" style={{padding:'20px 0'}}><div className="empty-ico"><ArrowLeftRight size={36}/></div><div className="empty-txt">{t('dashboard.noTx')}</div></div>
             : transactions.slice(0,6).map(tx=>{
-                const cat=getCat(tx.category); const isIn=tx.txType==='income';
+                const catLabel=tId('categories',tx.category,getCat(tx.category).label); const isIn=tx.txType==='income';
                 return <div key={tx.id} className="fb" style={{padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
                   <div className="flex g12">
                     <div className={`icon-circle ${isIn?'green':'red'}`}>
@@ -143,7 +146,7 @@ export default function Dashboard({ accounts, transactions, savings, settings, o
                     </div>
                     <div>
                       <div style={{fontSize:13,fontWeight:500}}>{tx.description}</div>
-                      <div style={{fontSize:11,color:'var(--text3)'}}>{cat.label}</div>
+                      <div style={{fontSize:11,color:'var(--text3)'}}>{catLabel}</div>
                     </div>
                   </div>
                   <div className={isIn?'tx-in':'tx-out'} style={{fontFamily:'var(--fd)',fontSize:13}}>
@@ -155,13 +158,13 @@ export default function Dashboard({ accounts, transactions, savings, settings, o
         </div>
         <div className="card">
           <div className="card-hd">
-            <div className="card-title">Objectifs d'Épargne</div>
+            <div className="card-title">{t('dashboard.savingsGoals')}</div>
             <button className="btn btn-ghost btn-sm" onClick={()=>onNav('savings')}>
-              Voir tout <ArrowRight size={12}/>
+              {t('dashboard.seeAll')} <ArrowRight size={12}/>
             </button>
           </div>
           {savings.length===0
-            ? <div className="empty" style={{padding:'20px 0'}}><div className="empty-ico"><Target size={36}/></div><div className="empty-txt">Aucun objectif</div></div>
+            ? <div className="empty" style={{padding:'20px 0'}}><div className="empty-ico"><Target size={36}/></div><div className="empty-txt">{t('dashboard.noGoal')}</div></div>
             : savings.slice(0,4).map(g=>{
                 const pct=Math.min(100,((Number(g.currentAmount)||0)/(Number(g.targetAmount)||1))*100);
                 return <div key={g.id} style={{marginBottom:14}}>

@@ -62,6 +62,8 @@ h1,h2,h3{font-family:var(--fd);line-height:1.2}
 .rate-chip{font-size:12px;color:var(--text2);background:var(--bg3);padding:5px 12px;border-radius:20px;border:1px solid var(--border);display:flex;align-items:center;gap:5px}
 .rate-chip b{color:var(--g1);font-weight:700}
 .avatar{width:34px;height:34px;border-radius:50%;border:2px solid var(--g-light);cursor:pointer}
+.lang-toggle{font-size:11px;font-weight:700;color:var(--text2);background:var(--bg3);padding:5px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;letter-spacing:.5px}
+.lang-toggle:hover{color:var(--g1);border-color:var(--g-light)}
 .user-name{font-size:13px;color:var(--text2);cursor:pointer;font-weight:500}
 .user-name:hover{color:var(--text)}
 .menu-toggle{display:none;background:none;border:none;color:var(--text);cursor:pointer;padding:4px;align-items:center;justify-content:center}

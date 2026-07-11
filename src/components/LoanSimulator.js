@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Calculator, TrendingDown, DollarSign, Calendar, Percent, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calculator, TrendingDown, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { fmtHTG, amortize } from '../utils/finance';
-
-const PRESETS = [
-  { label: 'Prêt Auto',       principal: 500000,  rate: 18, months: 60  },
-  { label: 'Prêt Immobilier', principal: 2000000, rate: 14, months: 180 },
-  { label: 'Prêt Personnel',  principal: 150000,  rate: 24, months: 24  },
-  { label: 'Carte de Crédit', principal: 50000,   rate: 36, months: 12  },
-];
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function LoanSimulator() {
+  const { t } = useLanguage();
+  const PRESETS = [
+    { key: 'preset_auto',     principal: 500000,  rate: 18, months: 60  },
+    { key: 'preset_home',     principal: 2000000, rate: 14, months: 180 },
+    { key: 'preset_personal', principal: 150000,  rate: 24, months: 24  },
+    { key: 'preset_card',     principal: 50000,   rate: 36, months: 12  },
+  ];
   const [p, setP] = useState({ principal: 500000, annualRate: 18, months: 60, currency: 'HTG' });
   const [showSchedule, setShowSchedule] = useState(false);
   const [compareMode, setCompareMode]   = useState(false);
@@ -33,17 +34,17 @@ export default function LoanSimulator() {
     <div>
       <div className="ph">
         <div>
-          <div className="pt">Simulateur de Prêt</div>
-          <div className="ps">Calculez et comparez vos scénarios de financement</div>
+          <div className="pt">{t('loan.title')}</div>
+          <div className="ps">{t('loan.subtitle')}</div>
         </div>
       </div>
 
       {/* Presets */}
       <div className="flex g8 mb24" style={{flexWrap:'wrap'}}>
         {PRESETS.map(pr=>(
-          <button key={pr.label} className="btn btn-ghost btn-sm"
+          <button key={pr.key} className="btn btn-ghost btn-sm"
             onClick={()=>setP(x=>({...x,principal:pr.principal,annualRate:pr.rate,months:pr.months}))}>
-            {pr.label}
+            {t(`loan.${pr.key}`)}
           </button>
         ))}
       </div>
@@ -53,16 +54,16 @@ export default function LoanSimulator() {
         <div style={{display:'grid',gap:16}}>
           <div className="card">
             <div className="card-hd">
-              <div className="card-title"><Calculator size={16} style={{color:'var(--g1)'}}/> Paramètres du Prêt</div>
+              <div className="card-title"><Calculator size={16} style={{color:'var(--g1)'}}/> {t('loan.params')}</div>
             </div>
             <div className="fgrid">
               <div className="frow">
                 <div className="fg">
-                  <label className="fl">Montant emprunté</label>
+                  <label className="fl">{t('loan.amount')}</label>
                   <input className="fi" type="number" value={p.principal} onChange={e=>set('principal',e.target.value)}/>
                 </div>
                 <div className="fg">
-                  <label className="fl">Devise</label>
+                  <label className="fl">{t('loan.currency')}</label>
                   <select className="fs" value={p.currency} onChange={e=>set('currency',e.target.value)}>
                     <option value="HTG">HTG</option>
                     <option value="USD">USD</option>
@@ -72,7 +73,7 @@ export default function LoanSimulator() {
 
               <div className="fg">
                 <label className="fl" style={{display:'flex',justifyContent:'space-between'}}>
-                  <span>Taux d'intérêt annuel</span>
+                  <span>{t('loan.annualRate')}</span>
                   <span style={{color:'var(--g1)',fontWeight:700}}>{p.annualRate}%</span>
                 </label>
                 <input type="range" min="1" max="60" step="0.5" value={p.annualRate} onChange={e=>set('annualRate',e.target.value)}/>
@@ -83,12 +84,12 @@ export default function LoanSimulator() {
 
               <div className="fg">
                 <label className="fl" style={{display:'flex',justifyContent:'space-between'}}>
-                  <span>Durée</span>
-                  <span style={{color:'var(--g1)',fontWeight:700}}>{p.months} mois ({(p.months/12).toFixed(1)} ans)</span>
+                  <span>{t('loan.duration')}</span>
+                  <span style={{color:'var(--g1)',fontWeight:700}}>{p.months} {t('loan.months')} ({(p.months/12).toFixed(1)} {t('loan.years')})</span>
                 </label>
                 <input type="range" min="3" max="360" step="1" value={p.months} onChange={e=>set('months',e.target.value)}/>
                 <div className="flex" style={{justifyContent:'space-between',fontSize:10,color:'var(--text3)',marginTop:2}}>
-                  <span>3 mois</span><span>5 ans</span><span>30 ans</span>
+                  <span>3 {t('loan.months')}</span><span>5 {t('loan.years')}</span><span>30 {t('loan.years')}</span>
                 </div>
               </div>
             </div>
@@ -97,19 +98,19 @@ export default function LoanSimulator() {
           {/* Compare */}
           <div className="card">
             <div className="card-hd">
-              <div className="card-title"><TrendingDown size={16} style={{color:'var(--blue)'}}/> Scénario de comparaison</div>
+              <div className="card-title"><TrendingDown size={16} style={{color:'var(--blue)'}}/> {t('loan.compare')}</div>
               <button className="btn btn-ghost btn-sm" onClick={()=>setCompareMode(x=>!x)}>
-                {compareMode ? 'Supprimer' : 'Ajouter'}
+                {compareMode ? t('loan.remove') : t('loan.add')}
               </button>
             </div>
             {compareMode && (
               <div className="frow">
                 <div className="fg">
-                  <label className="fl">Taux B (%)</label>
+                  <label className="fl">{t('loan.rateB')}</label>
                   <input className="fi" type="number" value={cp.annualRate} onChange={e=>setc('annualRate',e.target.value)}/>
                 </div>
                 <div className="fg">
-                  <label className="fl">Durée B (mois)</label>
+                  <label className="fl">{t('loan.durationB')}</label>
                   <input className="fi" type="number" value={cp.months} onChange={e=>setc('months',e.target.value)}/>
                 </div>
               </div>
@@ -117,23 +118,23 @@ export default function LoanSimulator() {
             {compareMode && cresult && (
               <div style={{marginTop:12,background:'var(--bg3)',borderRadius:8,padding:14,fontSize:13}}>
                 <div className="fb mb8">
-                  <span className="muted">Mensualité B</span>
+                  <span className="muted">{t('loan.monthlyB')}</span>
                   <strong style={{color:'var(--blue)'}}>{fmtHTG(cresult.monthly)}</strong>
                 </div>
                 <div className="fb mb8">
-                  <span className="muted">Total intérêts B</span>
+                  <span className="muted">{t('loan.totalInterestB')}</span>
                   <strong style={{color:'var(--blue)'}}>{fmtHTG(cresult.totalInterest)}</strong>
                 </div>
                 <div className="fb">
-                  <span className="muted">Économie vs A</span>
+                  <span className="muted">{t('loan.savingsVsA')}</span>
                   <strong style={{color:result.totalInterest>cresult.totalInterest?'var(--g1)':'var(--red)'}}>
                     {fmtHTG(Math.abs(result.totalInterest-cresult.totalInterest))}
-                    {result.totalInterest>cresult.totalInterest?' économisé':' surcoût'}
+                    {result.totalInterest>cresult.totalInterest?t('loan.saved'):t('loan.extra')}
                   </strong>
                 </div>
               </div>
             )}
-            {!compareMode && <div style={{fontSize:13,color:'var(--text3)'}}>Comparez deux scénarios de taux ou de durée pour optimiser votre financement.</div>}
+            {!compareMode && <div style={{fontSize:13,color:'var(--text3)'}}>{t('loan.compareHint')}</div>}
           </div>
         </div>
 
@@ -142,43 +143,43 @@ export default function LoanSimulator() {
           {/* KPI boxes */}
           <div className="sim-res">
             <div className="sim-box">
-              <div className="sim-lbl">Mensualité</div>
+              <div className="sim-lbl">{t('loan.monthly')}</div>
               <div className="sim-val" style={{color:'var(--g1)'}}>{fmtHTG(result.monthly)}</div>
             </div>
             <div className="sim-box">
-              <div className="sim-lbl">Total à rembourser</div>
+              <div className="sim-lbl">{t('loan.totalToRepay')}</div>
               <div className="sim-val">{fmtHTG(result.totalPayment)}</div>
             </div>
             <div className="sim-box">
-              <div className="sim-lbl">Total intérêts</div>
+              <div className="sim-lbl">{t('loan.totalInterest')}</div>
               <div className="sim-val" style={{color:'var(--red)'}}>{fmtHTG(result.totalInterest)}</div>
             </div>
           </div>
 
           {/* Capital vs intérêts bar */}
           <div className="card">
-            <div className="card-hd"><div className="card-title">Répartition Capital / Intérêts</div></div>
+            <div className="card-hd"><div className="card-title">{t('loan.breakdown')}</div></div>
             <div style={{display:'flex',height:12,borderRadius:6,overflow:'hidden',marginBottom:10}}>
               <div style={{background:'var(--g1)',flex:Number(p.principal)}}/>
               <div style={{background:'var(--red)',flex:result.totalInterest}}/>
             </div>
             <div className="flex g16" style={{fontSize:12}}>
-              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:2,background:'var(--g1)',display:'inline-block'}}/> Capital : {Math.round(Number(p.principal)/result.totalPayment*100)}%</span>
-              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:2,background:'var(--red)',display:'inline-block'}}/> Intérêts : {Math.round(result.totalInterest/result.totalPayment*100)}%</span>
+              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:2,background:'var(--g1)',display:'inline-block'}}/> {t('loan.capital')} : {Math.round(Number(p.principal)/result.totalPayment*100)}%</span>
+              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:2,background:'var(--red)',display:'inline-block'}}/> {t('loan.interest')} : {Math.round(result.totalInterest/result.totalPayment*100)}%</span>
             </div>
           </div>
 
           {/* Amortization curve */}
           <div className="card">
-            <div className="card-hd"><div className="card-title">Évolution du capital restant</div></div>
+            <div className="card-hd"><div className="card-title">{t('loan.balanceEvolution')}</div></div>
             <div style={{height:160}}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={result.schedule.filter((_,i)=>i%scheduleStep===0)} margin={{top:4,right:4,left:0,bottom:0}}>
                   <defs><linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00A86B" stopOpacity={.2}/><stop offset="95%" stopColor="#00A86B" stopOpacity={0}/></linearGradient></defs>
                   <XAxis dataKey="month" stroke="#8A97A8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`M${v}`} interval="preserveStartEnd"/>
                   <YAxis stroke="#8A97A8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`${Math.round(v/1000)}k`}/>
-                  <Tooltip formatter={v=>fmtHTG(v)} labelFormatter={v=>`Mois ${v}`}/>
-                  <Area type="monotone" dataKey="balance" name="Capital restant" stroke="#00A86B" strokeWidth={2} fill="url(#gl)"/>
+                  <Tooltip formatter={v=>fmtHTG(v)} labelFormatter={v=>`${t('loan.col_month')} ${v}`}/>
+                  <Area type="monotone" dataKey="balance" name={t('loan.col_balance')} stroke="#00A86B" strokeWidth={2} fill="url(#gl)"/>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -186,15 +187,15 @@ export default function LoanSimulator() {
 
           {/* Principal vs interest per payment */}
           <div className="card">
-            <div className="card-hd"><div className="card-title">Principal vs Intérêts par mensualité</div></div>
+            <div className="card-hd"><div className="card-title">{t('loan.principalVsInterest')}</div></div>
             <div style={{height:160}}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={result.schedule.filter((_,i)=>i%scheduleStep===0)} margin={{top:4,right:4,left:0,bottom:0}} barSize={6}>
                   <XAxis dataKey="month" stroke="#8A97A8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`M${v}`} interval="preserveStartEnd"/>
                   <YAxis stroke="#8A97A8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`${Math.round(v/1000)}k`}/>
                   <Tooltip content={<TT/>}/>
-                  <Bar dataKey="principal" name="Principal" stackId="a" fill="#00A86B"/>
-                  <Bar dataKey="interest"  name="Intérêts"  stackId="a" fill="#E53E3E" radius={[2,2,0,0]}/>
+                  <Bar dataKey="principal" name={t('loan.col_principal')} stackId="a" fill="#00A86B"/>
+                  <Bar dataKey="interest"  name={t('loan.col_interest')}  stackId="a" fill="#E53E3E" radius={[2,2,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -205,9 +206,9 @@ export default function LoanSimulator() {
       {/* Amortization table */}
       <div className="card mt24">
         <div className="card-hd">
-          <div className="card-title"><Calendar size={16} style={{color:'var(--g1)'}}/> Tableau d'amortissement</div>
+          <div className="card-title"><Calendar size={16} style={{color:'var(--g1)'}}/> {t('loan.schedule')}</div>
           <button className="btn btn-ghost btn-sm" onClick={()=>setShowSchedule(s=>!s)}>
-            {showSchedule?<><ChevronUp size={14}/> Masquer</>:<><ChevronDown size={14}/> Afficher</>}
+            {showSchedule?<><ChevronUp size={14}/> {t('loan.hide')}</>:<><ChevronDown size={14}/> {t('loan.show')}</>}
           </button>
         </div>
         {showSchedule && (
@@ -215,11 +216,11 @@ export default function LoanSimulator() {
             <table>
               <thead>
                 <tr>
-                  <th>Mois</th>
-                  <th style={{textAlign:'right'}}>Mensualité</th>
-                  <th style={{textAlign:'right'}}>Principal</th>
-                  <th style={{textAlign:'right'}}>Intérêts</th>
-                  <th style={{textAlign:'right'}}>Capital Restant</th>
+                  <th>{t('loan.col_month')}</th>
+                  <th style={{textAlign:'right'}}>{t('loan.col_payment')}</th>
+                  <th style={{textAlign:'right'}}>{t('loan.col_principal')}</th>
+                  <th style={{textAlign:'right'}}>{t('loan.col_interest')}</th>
+                  <th style={{textAlign:'right'}}>{t('loan.col_balance')}</th>
                 </tr>
               </thead>
               <tbody>

@@ -2,21 +2,22 @@ import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Target, Plus, Pencil, Trash2, PlusCircle, TrendingUp, Calendar, Home, Plane, GraduationCap, Car, Heart, Gem, Umbrella, Briefcase, Smartphone, Dumbbell, Music, Building, Gift } from 'lucide-react';
 import { fmtHTG, fmt, compoundSavings } from '../utils/finance';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const GOAL_TYPES = [
-  { id:'savings', Icon:Building,      label:'Épargne générale' },
-  { id:'home',    Icon:Home,          label:'Logement'         },
-  { id:'travel',  Icon:Plane,         label:'Voyage'           },
-  { id:'edu',     Icon:GraduationCap, label:'Éducation'        },
-  { id:'car',     Icon:Car,           label:'Véhicule'         },
-  { id:'health',  Icon:Heart,         label:'Santé'            },
-  { id:'wedding', Icon:Gem,       label:'Mariage'          },
-  { id:'leisure', Icon:Umbrella,      label:'Loisirs'          },
-  { id:'biz',     Icon:Briefcase,     label:'Affaires'         },
-  { id:'tech',    Icon:Smartphone,    label:'Technologie'      },
-  { id:'sport',   Icon:Dumbbell,      label:'Sport'            },
-  { id:'music',   Icon:Music,         label:'Musique'          },
-  { id:'gift',    Icon:Gift,          label:'Cadeau'           },
+  { id:'savings', Icon:Building },
+  { id:'home',    Icon:Home },
+  { id:'travel',  Icon:Plane },
+  { id:'edu',     Icon:GraduationCap },
+  { id:'car',     Icon:Car },
+  { id:'health',  Icon:Heart },
+  { id:'wedding', Icon:Gem },
+  { id:'leisure', Icon:Umbrella },
+  { id:'biz',     Icon:Briefcase },
+  { id:'tech',    Icon:Smartphone },
+  { id:'sport',   Icon:Dumbbell },
+  { id:'music',   Icon:Music },
+  { id:'gift',    Icon:Gift },
 ];
 
 function GoalIcon({ type, size=20, ...rest }) {
@@ -26,6 +27,7 @@ function GoalIcon({ type, size=20, ...rest }) {
 }
 
 function SavingsModal({ goal, onSave, onClose }) {
+  const { t, tId } = useLanguage();
   const [form, setForm] = useState(goal || {
     name:'', targetAmount:'', currentAmount:'0',
     currency:'HTG', targetDate:'', monthlyContrib:'0',
@@ -37,15 +39,15 @@ function SavingsModal({ goal, onSave, onClose }) {
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
         <div className="modal-hd">
-          <div className="modal-ttl"><Target size={18} style={{color:'var(--g1)'}}/>{goal?'Modifier l\'objectif':'Nouvel Objectif d\'Épargne'}</div>
+          <div className="modal-ttl"><Target size={18} style={{color:'var(--g1)'}}/>{goal?t('savings.m_title'):t('savings.m_titleNew')}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="fgrid">
           <div className="fg">
-            <label className="fl">Type d'objectif</label>
+            <label className="fl">{t('savings.m_goalType')}</label>
             <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:6}}>
-              {GOAL_TYPES.map(({id,Icon,label})=>(
-                <button key={id} title={label} onClick={()=>set('iconType',id)} style={{
+              {GOAL_TYPES.map(({id,Icon})=>(
+                <button key={id} title={tId('goalTypes',id,id)} onClick={()=>set('iconType',id)} style={{
                   width:'100%',aspectRatio:'1',borderRadius:8,
                   border:`2px solid ${form.iconType===id?'var(--g1)':'var(--border)'}`,
                   background:form.iconType===id?'var(--g-bg)':'var(--bg3)',
@@ -59,25 +61,25 @@ function SavingsModal({ goal, onSave, onClose }) {
             </div>
           </div>
           <div className="fg">
-            <label className="fl">Nom de l'objectif *</label>
-            <input className="fi" value={form.name} onChange={e=>set('name',e.target.value)} placeholder="ex. Fonds d'urgence"/>
+            <label className="fl">{t('savings.m_name')}</label>
+            <input className="fi" value={form.name} onChange={e=>set('name',e.target.value)} placeholder={t('savings.m_namePh')}/>
           </div>
           <div className="frow">
-            <div className="fg"><label className="fl">Objectif cible *</label><input className="fi" type="number" value={form.targetAmount} onChange={e=>set('targetAmount',e.target.value)} placeholder="0"/></div>
-            <div className="fg"><label className="fl">Devise</label><select className="fs" value={form.currency} onChange={e=>set('currency',e.target.value)}><option value="HTG">HTG</option><option value="USD">USD</option></select></div>
+            <div className="fg"><label className="fl">{t('savings.m_targetAmount')}</label><input className="fi" type="number" value={form.targetAmount} onChange={e=>set('targetAmount',e.target.value)} placeholder="0"/></div>
+            <div className="fg"><label className="fl">{t('accounts.m_currency')}</label><select className="fs" value={form.currency} onChange={e=>set('currency',e.target.value)}><option value="HTG">HTG</option><option value="USD">USD</option></select></div>
           </div>
           <div className="frow">
-            <div className="fg"><label className="fl">Montant actuel</label><input className="fi" type="number" value={form.currentAmount} onChange={e=>set('currentAmount',e.target.value)} placeholder="0"/></div>
-            <div className="fg"><label className="fl">Contribution mensuelle</label><input className="fi" type="number" value={form.monthlyContrib} onChange={e=>set('monthlyContrib',e.target.value)} placeholder="0"/></div>
+            <div className="fg"><label className="fl">{t('savings.m_currentAmount')}</label><input className="fi" type="number" value={form.currentAmount} onChange={e=>set('currentAmount',e.target.value)} placeholder="0"/></div>
+            <div className="fg"><label className="fl">{t('savings.m_monthly')}</label><input className="fi" type="number" value={form.monthlyContrib} onChange={e=>set('monthlyContrib',e.target.value)} placeholder="0"/></div>
           </div>
           <div className="frow">
-            <div className="fg"><label className="fl">Date cible</label><input className="fi" type="date" value={form.targetDate} onChange={e=>set('targetDate',e.target.value)}/></div>
-            <div className="fg"><label className="fl">Taux annuel (%)</label><input className="fi" type="number" value={form.annualRate} onChange={e=>set('annualRate',e.target.value)}/></div>
+            <div className="fg"><label className="fl">{t('savings.m_targetDate')}</label><input className="fi" type="date" value={form.targetDate} onChange={e=>set('targetDate',e.target.value)}/></div>
+            <div className="fg"><label className="fl">{t('savings.m_annualRate')}</label><input className="fi" type="number" value={form.annualRate} onChange={e=>set('annualRate',e.target.value)}/></div>
           </div>
           <div className="flex g8" style={{justifyContent:'flex-end'}}>
-            <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+            <button className="btn btn-ghost" onClick={onClose}>{t('savings.m_cancel')}</button>
             <button className="btn btn-primary" onClick={()=>{if(form.name&&form.targetAmount)onSave({...form,targetAmount:Number(form.targetAmount),currentAmount:Number(form.currentAmount)||0,monthlyContrib:Number(form.monthlyContrib)||0});}}>
-              {goal?'Enregistrer':'Créer'}
+              {goal?t('savings.m_save'):t('savings.m_create')}
             </button>
           </div>
         </div>
@@ -87,19 +89,20 @@ function SavingsModal({ goal, onSave, onClose }) {
 }
 
 function DepositModal({ goal, onSave, onClose }) {
+  const { t } = useLanguage();
   const [amount, setAmount] = useState('');
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{maxWidth:380}}>
         <div className="modal-hd">
-          <div className="modal-ttl"><PlusCircle size={18} style={{color:'var(--g1)'}}/> Ajouter des fonds — {goal.name}</div>
+          <div className="modal-ttl"><PlusCircle size={18} style={{color:'var(--g1)'}}/> {t('savings.d_title')} — {goal.name}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="fgrid">
-          <div className="fg"><label className="fl">Montant ({goal.currency})</label><input className="fi" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus/></div>
+          <div className="fg"><label className="fl">{t('savings.d_amount')} ({goal.currency})</label><input className="fi" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus/></div>
           <div className="flex g8" style={{justifyContent:'flex-end'}}>
-            <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button className="btn btn-primary" onClick={()=>{if(amount){onSave(Number(amount));onClose();}}}>Confirmer</button>
+            <button className="btn btn-ghost" onClick={onClose}>{t('savings.m_cancel')}</button>
+            <button className="btn btn-primary" onClick={()=>{if(amount){onSave(Number(amount));onClose();}}}>{t('savings.d_confirm')}</button>
           </div>
         </div>
       </div>
@@ -108,6 +111,7 @@ function DepositModal({ goal, onSave, onClose }) {
 }
 
 export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
+  const { t, lang } = useLanguage();
   const [showModal,  setShowModal]  = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [depositing, setDepositing] = useState(null);
@@ -126,22 +130,22 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
 
   const TT = ({active,payload})=>{
     if(!active||!payload?.length) return null;
-    return <div className="ctt"><div>Mois {payload[0].payload.month}</div><div style={{color:'var(--g1)',fontWeight:700}}>{fmtHTG(payload[0].value)}</div></div>;
+    return <div className="ctt"><div>{t('loan.col_month')} {payload[0].payload.month}</div><div style={{color:'var(--g1)',fontWeight:700}}>{fmtHTG(payload[0].value)}</div></div>;
   };
 
   return (
     <div>
       <div className="ph">
-        <div><div className="pt">Épargne & Objectifs</div><div className="ps">Définissez vos cibles et suivez votre progression</div></div>
-        <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}><Plus size={15}/> Nouvel Objectif</button>
+        <div><div className="pt">{t('savings.title')}</div><div className="ps">{t('savings.subtitle')}</div></div>
+        <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}><Plus size={15}/> {t('savings.newGoal')}</button>
       </div>
 
       {savings.length===0 ? (
         <div className="empty">
           <div className="empty-ico"><Target size={48}/></div>
-          <div className="empty-ttl">Aucun objectif créé</div>
-          <div className="empty-txt" style={{marginBottom:16}}>Définissez vos cibles d'épargne et suivez votre progression</div>
-          <button className="btn btn-primary" onClick={()=>setShowModal(true)}><Plus size={15}/> Créer un objectif</button>
+          <div className="empty-ttl">{t('savings.empty')}</div>
+          <div className="empty-txt" style={{marginBottom:16}}>{t('savings.emptySub')}</div>
+          <button className="btn btn-primary" onClick={()=>setShowModal(true)}><Plus size={15}/> {t('savings.createGoal')}</button>
         </div>
       ) : (
         <div className={selected?'two':''} style={!selected?{display:'grid',gap:14}:{}}>
@@ -155,31 +159,31 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                     </div>
                     <div>
                       <div style={{fontWeight:700,fontSize:14}}>{g.name}</div>
-                      <div style={{fontSize:12,color:'var(--text2)',marginTop:1}}>Objectif : {fmt(Number(g.targetAmount)||0,g.currency)}</div>
+                      <div style={{fontSize:12,color:'var(--text2)',marginTop:1}}>{t('savings.target')} : {fmt(Number(g.targetAmount)||0,g.currency)}</div>
                     </div>
                   </div>
                   <div style={{textAlign:'right'}}>
                     <div style={{fontSize:'1.2rem',fontWeight:800,color:g.pct>=100?'var(--g1)':'var(--text)'}}>{Math.round(g.pct)}%</div>
-                    <div style={{fontSize:11,color:'var(--text3)'}}>{g.pct>=100?'Objectif atteint ✓':`${fmt(g.remaining,g.currency)} restant`}</div>
+                    <div style={{fontSize:11,color:'var(--text3)'}}>{g.pct>=100?t('savings.achieved'):`${fmt(g.remaining,g.currency)} ${t('savings.remaining')}`}</div>
                   </div>
                 </div>
                 <div className="prog-track" style={{height:6,marginBottom:8}}>
                   <div className={`prog-fill ${g.pct>=100?'ok':g.pct>=50?'warn':'danger'}`} style={{width:`${g.pct}%`}}/>
                 </div>
                 <div className="fb" style={{fontSize:12,color:'var(--text2)'}}>
-                  <span>{fmt(Number(g.currentAmount)||0,g.currency)} épargné</span>
-                  {Number(g.monthlyContrib)>0&&<span>+{fmt(Number(g.monthlyContrib),g.currency)}/mois</span>}
-                  {g.targetDate&&<span style={{display:'flex',alignItems:'center',gap:3}}><Calendar size={11}/>{new Date(g.targetDate).toLocaleDateString('fr-FR',{month:'short',year:'numeric'})}</span>}
+                  <span>{fmt(Number(g.currentAmount)||0,g.currency)} {t('savings.saved')}</span>
+                  {Number(g.monthlyContrib)>0&&<span>+{fmt(Number(g.monthlyContrib),g.currency)}{t('savings.perMonth')}</span>}
+                  {g.targetDate&&<span style={{display:'flex',alignItems:'center',gap:3}}><Calendar size={11}/>{new Date(g.targetDate).toLocaleDateString(lang==='en'?'en-US':'fr-FR',{month:'short',year:'numeric'})}</span>}
                 </div>
                 {g.reachMonth>=0&&g.pct<100&&(
                   <div style={{marginTop:10,padding:'7px 12px',background:'var(--g-bg)',borderRadius:7,fontSize:12,color:'var(--g1)',fontWeight:600,border:'1px solid var(--g-light)',display:'flex',alignItems:'center',gap:6}}>
-                    <TrendingUp size={13}/> Objectif atteint dans ~{g.reachMonth+1} mois avec intérêts
+                    <TrendingUp size={13}/> {t('savings.reachIn')}{g.reachMonth+1}{t('savings.reachSuffix')}
                   </div>
                 )}
                 <div className="flex g8 mt12" onClick={e=>e.stopPropagation()}>
-                  <button className="btn btn-primary btn-sm" onClick={()=>setDepositing(g)}><Plus size={12}/> Ajouter</button>
-                  <button className="btn btn-ghost btn-sm" onClick={()=>{setEditing(g);setShowModal(true);}}><Pencil size={12}/> Modifier</button>
-                  <button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm('Supprimer cet objectif ?'))onDelete(g.id);}}><Trash2 size={12}/></button>
+                  <button className="btn btn-primary btn-sm" onClick={()=>setDepositing(g)}><Plus size={12}/> {t('savings.add')}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>{setEditing(g);setShowModal(true);}}><Pencil size={12}/> {t('savings.edit')}</button>
+                  <button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm(t('savings.deleteConfirm')))onDelete(g.id);}}><Trash2 size={12}/></button>
                 </div>
               </div>
             ))}
@@ -189,15 +193,15 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
             <div>
               <div className="card" style={{position:'sticky',top:16}}>
                 <div className="card-hd">
-                  <div className="card-title"><TrendingUp size={16} style={{color:'var(--g1)'}}/> Projection — {selectedGoal.name}</div>
+                  <div className="card-title"><TrendingUp size={16} style={{color:'var(--g1)'}}/> {t('savings.projection')} — {selectedGoal.name}</div>
                   <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)}>✕</button>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
                   {[
-                    {label:'Épargné',value:fmt(Number(selectedGoal.currentAmount)||0,selectedGoal.currency),color:'var(--text)'},
-                    {label:'Objectif',value:fmt(Number(selectedGoal.targetAmount)||0,selectedGoal.currency),color:'var(--g1)'},
-                    {label:'Restant',value:fmt(selectedGoal.remaining,selectedGoal.currency),color:'var(--red)'},
-                    {label:'Taux',value:`${selectedGoal.annualRate||0}%/an`,color:'var(--teal)'},
+                    {label:t('savings.stat_saved'),value:fmt(Number(selectedGoal.currentAmount)||0,selectedGoal.currency),color:'var(--text)'},
+                    {label:t('savings.stat_target'),value:fmt(Number(selectedGoal.targetAmount)||0,selectedGoal.currency),color:'var(--g1)'},
+                    {label:t('savings.stat_remaining'),value:fmt(selectedGoal.remaining,selectedGoal.currency),color:'var(--red)'},
+                    {label:t('savings.stat_rate'),value:`${selectedGoal.annualRate||0}${t('savings.perYear')}`,color:'var(--teal)'},
                   ].map(({label,value,color})=>(
                     <div key={label} style={{background:'var(--bg3)',borderRadius:8,padding:'10px 12px',border:'1px solid var(--border)'}}>
                       <div style={{fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{label}</div>
@@ -205,7 +209,7 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                     </div>
                   ))}
                 </div>
-                <div className="sl">Projection sur 36 mois</div>
+                <div className="sl">{t('savings.projection36')}</div>
                 <div style={{height:160}}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={selectedGoal.proj} margin={{top:4,right:4,left:0,bottom:0}}>
@@ -219,7 +223,7 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                 </div>
                 {selectedGoal.reachMonth>=0&&(
                   <div style={{marginTop:12,padding:'10px 14px',background:'var(--g-bg)',borderRadius:8,fontSize:13,color:'var(--g1)',fontWeight:600,border:'1px solid var(--g-light)'}}>
-                    Avec {fmt(Number(selectedGoal.monthlyContrib)||0,selectedGoal.currency)}/mois à {selectedGoal.annualRate||0}%, objectif atteint en {selectedGoal.reachMonth+1} mois.
+                    {t('savings.withText')} {fmt(Number(selectedGoal.monthlyContrib)||0,selectedGoal.currency)}{t('savings.perMonth')} {t('savings.atText')} {selectedGoal.annualRate||0}%, {t('savings.achievedIn')} {selectedGoal.reachMonth+1} {t('savings.monthsText')}.
                   </div>
                 )}
               </div>
