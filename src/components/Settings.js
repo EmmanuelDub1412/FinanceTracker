@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Settings({ user, settings, onSave, onLogout, onOpenMigration }) {
+export default function Settings({ user, settings, onSave, onLogout }) {
   const [rate, setRate] = useState(settings?.usdToHtg || 130);
   const [saved, setSaved] = useState(false);
 
@@ -27,12 +27,7 @@ export default function Settings({ user, settings, onSave, onLogout, onOpenMigra
       </div>
       <div className="card mb16">
         <div className="card-hd"><div className="card-title">☁️ Stockage des données</div></div>
-        <div style={{fontSize:13,color:'var(--text2)',marginBottom:10}}>Vos données sont stockées de façon sécurisée et privée, accessibles uniquement depuis votre compte.</div>
-        {onOpenMigration && (
-          <button className="btn btn-ghost btn-sm" onClick={onOpenMigration}>
-            ⬇ Importer depuis mon ancien Google Sheet
-          </button>
-        )}
+        <div style={{fontSize:13,color:'var(--text2)'}}>Vos données sont stockées de façon sécurisée et privée, accessibles uniquement depuis votre compte.</div>
       </div>
       <div className="card mb16">
         <div className="card-hd"><div className="card-title">💱 Taux de Change</div></div>
