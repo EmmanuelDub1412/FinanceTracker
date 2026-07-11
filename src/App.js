@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './styles.css';
 import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
-import SetupWizard   from './components/SetupWizard';
+import LoginScreen  from './components/LoginScreen';
 import SheetConnect  from './components/SheetConnect';
 import Dashboard     from './components/Dashboard';
 import Accounts      from './components/Accounts';
@@ -11,7 +11,9 @@ import Savings       from './components/Savings';
 import LoanSimulator from './components/LoanSimulator';
 import InvestmentSimulator from './components/InvestmentSimulator';
 import Settings      from './components/Settings';
-const getClientId = () => localStorage.getItem('ft_client_id') || '';
+// Client ID OAuth Google fixe pour FinTrack — plus besoin de demander a
+// l'utilisateur de le configurer lui-meme via un wizard.
+const GOOGLE_CLIENT_ID = '512606910439-7f0795mn9j2u54daro59r261qfh0ntkj.apps.googleusercontent.com';
 const NAV = [
   {id:'dashboard',    label:'Tableau de Bord',    Icon:LayoutDashboard, group:'main'},
   {id:'accounts',     label:'Mes Comptes',         Icon:Wallet,          group:'main'},
@@ -23,12 +25,8 @@ const NAV = [
 ];
 const GROUPS = {main:'PRINCIPAL', planning:'PLANIFICATION', system:'SYSTÈME'};
 export default function App() {
-  const [clientId, setClientId] = useState(getClientId);
   const [page, setPage] = useState('dashboard');
-  const ft = useFinTrack(clientId);
-  if (!clientId) return <SetupWizard
-    onClientIdSaved={id=>{localStorage.setItem('ft_client_id',id);setClientId(id);}}
-    onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
+  const ft = useFinTrack(GOOGLE_CLIENT_ID);
   if (ft.authState==='loading') return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
       <div style={{textAlign:'center'}}>
@@ -40,8 +38,7 @@ export default function App() {
       </div>
     </div>
   );
-  if (!ft.user) return <SetupWizard
-    onClientIdSaved={id=>{localStorage.setItem('ft_client_id',id);setClientId(id);}}
+  if (!ft.user) return <LoginScreen
     onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
   if (ft.authState==='setup') return <SheetConnect
     user={ft.user} onConnect={ft.connectSheet} onCreate={ft.createNewSheet}
