@@ -50,9 +50,9 @@ export default function App() {
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="logo">
+        <div className="logo" style={{fontWeight:800}}>
           <TrendingUp size={20} style={{color:'var(--g1)'}}/>
-          Fin<em>Track</em>
+          Fin<em style={{fontStyle:'normal'}}>Track</em>
         </div>
         {ft.syncing && <div className="syncing-dot"/>}
         {ft.error && (
