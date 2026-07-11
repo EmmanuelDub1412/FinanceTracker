@@ -3,7 +3,7 @@ import './styles.css';
 import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
 import LoginScreen  from './components/LoginScreen';
-import SheetConnect  from './components/SheetConnect';
+import MigrationTool from './components/MigrationTool';
 import Dashboard     from './components/Dashboard';
 import Accounts      from './components/Accounts';
 import Transactions  from './components/Transactions';
@@ -11,9 +11,6 @@ import Savings       from './components/Savings';
 import LoanSimulator from './components/LoanSimulator';
 import InvestmentSimulator from './components/InvestmentSimulator';
 import Settings      from './components/Settings';
-// Client ID OAuth Google fixe pour FinTrack — plus besoin de demander a
-// l'utilisateur de le configurer lui-meme via un wizard.
-const GOOGLE_CLIENT_ID = '512606910439-7f0795mn9j2u54daro59r261qfh0ntkj.apps.googleusercontent.com';
 const NAV = [
   {id:'dashboard',    label:'Tableau de Bord',    Icon:LayoutDashboard, group:'main'},
   {id:'accounts',     label:'Mes Comptes',         Icon:Wallet,          group:'main'},
@@ -26,7 +23,7 @@ const NAV = [
 const GROUPS = {main:'PRINCIPAL', planning:'PLANIFICATION', system:'SYSTÈME'};
 export default function App() {
   const [page, setPage] = useState('dashboard');
-  const ft = useFinTrack(GOOGLE_CLIENT_ID);
+  const ft = useFinTrack();
   if (ft.authState==='loading') return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
       <div style={{textAlign:'center'}}>
@@ -40,9 +37,7 @@ export default function App() {
   );
   if (!ft.user) return <LoginScreen
     onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
-  if (ft.authState==='setup') return <SheetConnect
-    user={ft.user} onConnect={ft.connectSheet} onCreate={ft.createNewSheet}
-    onLogout={ft.logout} loading={ft.loading} error={ft.error}/>;
+  if (page === 'migration') return <MigrationTool onClose={() => { setPage('settings'); ft.refresh(); }}/>;
   const renderedGroups = [];
   return (
     <div className="shell">
@@ -81,12 +76,6 @@ export default function App() {
             </React.Fragment>
           );
         })}
-        <div className="nav-sheet-info">
-          <div style={{marginBottom:3,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'var(--text3)'}}>Google Sheet</div>
-          <a href={`https://docs.google.com/spreadsheets/d/${ft.spreadsheetId}/edit`} target="_blank" rel="noreferrer">
-            {ft.spreadsheetId?.slice(0,22)}…
-          </a>
-        </div>
       </nav>
       <main className="main">
         {page==='dashboard'    && <Dashboard    accounts={ft.accounts} transactions={ft.transactions} savings={ft.savings} settings={ft.settings} onNav={setPage}/>}
@@ -95,7 +84,7 @@ export default function App() {
         {page==='savings'      && <Savings      savings={ft.savings} onAdd={ft.addSaving} onUpdate={ft.updateSaving} onDelete={ft.deleteSaving}/>}
         {page==='loan'         && <LoanSimulator settings={ft.settings}/>}
         {page==='investment'   && <InvestmentSimulator settings={ft.settings}/>}
-        {page==='settings'     && <Settings     user={ft.user} settings={ft.settings} spreadsheetId={ft.spreadsheetId} onSave={ft.saveSetting} onLogout={ft.logout}/>}
+        {page==='settings'     && <Settings     user={ft.user} settings={ft.settings} onSave={ft.saveSetting} onLogout={ft.logout} onOpenMigration={() => setPage('migration')}/>}
       </main>
     </div>
   );

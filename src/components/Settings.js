@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Settings({ user, settings, spreadsheetId, onSave, onLogout }) {
+export default function Settings({ user, settings, onSave, onLogout, onOpenMigration }) {
   const [rate, setRate] = useState(settings?.usdToHtg || 130);
   const [saved, setSaved] = useState(false);
 
@@ -8,8 +8,6 @@ export default function Settings({ user, settings, spreadsheetId, onSave, onLogo
     await onSave('usdToHtg', Number(rate));
     setSaved(true); setTimeout(() => setSaved(false), 2000);
   };
-
-  const sheetUrl = spreadsheetId ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : null;
 
   return (
     <div>
@@ -28,14 +26,13 @@ export default function Settings({ user, settings, spreadsheetId, onSave, onLogo
         <button className="btn btn-danger" onClick={onLogout}>⎋ Déconnecter</button>
       </div>
       <div className="card mb16">
-        <div className="card-hd"><div className="card-title">📊 Google Sheet connecté</div></div>
-        <div style={{fontSize:13,color:'var(--text2)',marginBottom:10}}>Toutes vos données sont dans votre Google Drive personnel.</div>
-        {sheetUrl ? (
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <code style={{background:'var(--bg3)',border:'1px solid var(--border)',padding:'6px 10px',borderRadius:6,fontSize:11,color:'var(--text2)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{spreadsheetId}</code>
-            <a href={sheetUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">📂 Ouvrir</a>
-          </div>
-        ) : <div style={{color:'var(--text3)',fontSize:13}}>Aucun Sheet connecté</div>}
+        <div className="card-hd"><div className="card-title">☁️ Stockage des données</div></div>
+        <div style={{fontSize:13,color:'var(--text2)',marginBottom:10}}>Vos données sont stockées de façon sécurisée et privée, accessibles uniquement depuis votre compte.</div>
+        {onOpenMigration && (
+          <button className="btn btn-ghost btn-sm" onClick={onOpenMigration}>
+            ⬇ Importer depuis mon ancien Google Sheet
+          </button>
+        )}
       </div>
       <div className="card mb16">
         <div className="card-hd"><div className="card-title">💱 Taux de Change</div></div>
@@ -50,9 +47,9 @@ export default function Settings({ user, settings, spreadsheetId, onSave, onLogo
       <div className="card">
         <div className="card-hd"><div className="card-title">🔒 Confidentialité</div></div>
         <div style={{fontSize:13,color:'var(--text2)',lineHeight:2}}>
-          <div>• Vos données sont uniquement dans votre Google Sheet personnel</div>
-          <div>• FinTrack ne stocke aucune donnée sur ses propres serveurs</div>
-          <div>• L'app est open source et hébergée sur GitHub Pages</div>
+          <div>• Vos données sont isolées par compte, personne d'autre n'y a accès</div>
+          <div>• La connexion se fait uniquement via votre compte Google, sans mot de passe séparé</div>
+          <div>• L'app est hébergée sur GitHub Pages</div>
         </div>
       </div>
     </div>
