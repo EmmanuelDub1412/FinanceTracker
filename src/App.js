@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './styles.css';
-import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
 import SetupWizard   from './components/SetupWizard';
 import SheetConnect  from './components/SheetConnect';
@@ -9,29 +9,26 @@ import Accounts      from './components/Accounts';
 import Transactions  from './components/Transactions';
 import Savings       from './components/Savings';
 import LoanSimulator from './components/LoanSimulator';
+import InvestmentSimulator from './components/InvestmentSimulator';
 import Settings      from './components/Settings';
-
 const getClientId = () => localStorage.getItem('ft_client_id') || '';
-
 const NAV = [
   {id:'dashboard',    label:'Tableau de Bord',    Icon:LayoutDashboard, group:'main'},
   {id:'accounts',     label:'Mes Comptes',         Icon:Wallet,          group:'main'},
   {id:'transactions', label:'Transactions',        Icon:ArrowLeftRight,  group:'main'},
   {id:'savings',      label:'Épargne & Objectifs', Icon:Target,          group:'planning'},
   {id:'loan',         label:'Simulateur de Prêt',  Icon:Calculator,      group:'planning'},
+  {id:'investment',   label:'Simulation de Placement', Icon:PiggyBank,   group:'planning'},
   {id:'settings',     label:'Paramètres',          Icon:Cog,             group:'system'},
 ];
 const GROUPS = {main:'PRINCIPAL', planning:'PLANIFICATION', system:'SYSTÈME'};
-
 export default function App() {
   const [clientId, setClientId] = useState(getClientId);
   const [page, setPage] = useState('dashboard');
   const ft = useFinTrack(clientId);
-
   if (!clientId) return <SetupWizard
     onClientIdSaved={id=>{localStorage.setItem('ft_client_id',id);setClientId(id);}}
     onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
-
   if (ft.authState==='loading') return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
       <div style={{textAlign:'center'}}>
@@ -43,17 +40,13 @@ export default function App() {
       </div>
     </div>
   );
-
   if (!ft.user) return <SetupWizard
     onClientIdSaved={id=>{localStorage.setItem('ft_client_id',id);setClientId(id);}}
     onLogin={()=>ft.login()} gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
-
   if (ft.authState==='setup') return <SheetConnect
     user={ft.user} onConnect={ft.connectSheet} onCreate={ft.createNewSheet}
     onLogout={ft.logout} loading={ft.loading} error={ft.error}/>;
-
   const renderedGroups = [];
-
   return (
     <div className="shell">
       <header className="topbar">
@@ -78,7 +71,6 @@ export default function App() {
           <img className="avatar" src={ft.user?.picture||ft.user?.photoURL} alt="" onClick={()=>setPage('settings')}/>
         </div>
       </header>
-
       <nav className="sidebar">
         {NAV.map(({id,label,Icon,group})=>{
           const sg=!renderedGroups.includes(group);
@@ -99,13 +91,13 @@ export default function App() {
           </a>
         </div>
       </nav>
-
       <main className="main">
         {page==='dashboard'    && <Dashboard    accounts={ft.accounts} transactions={ft.transactions} savings={ft.savings} settings={ft.settings} onNav={setPage}/>}
         {page==='accounts'     && <Accounts     accounts={ft.accounts} transactions={ft.transactions} settings={ft.settings} onAdd={ft.addAccount} onUpdate={ft.updateAccount} onDelete={ft.deleteAccount}/>}
         {page==='transactions' && <Transactions transactions={ft.transactions} accounts={ft.accounts} settings={ft.settings} onAdd={ft.addTransaction} onUpdate={ft.updateTransaction} onDelete={ft.deleteTransaction}/>}
         {page==='savings'      && <Savings      savings={ft.savings} onAdd={ft.addSaving} onUpdate={ft.updateSaving} onDelete={ft.deleteSaving}/>}
         {page==='loan'         && <LoanSimulator settings={ft.settings}/>}
+        {page==='investment'   && <InvestmentSimulator settings={ft.settings}/>}
         {page==='settings'     && <Settings     user={ft.user} settings={ft.settings} spreadsheetId={ft.spreadsheetId} onSave={ft.saveSetting} onLogout={ft.logout}/>}
       </main>
     </div>
