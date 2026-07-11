@@ -1,222 +1,212 @@
 import React, { useState, useMemo } from 'react';
-import {
-  TrendingUp, Calendar, ChevronDown, ChevronUp, PiggyBank,
-} from 'lucide-react';
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-} from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { PiggyBank, TrendingUp, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { fmtHTG, fmtUSD } from '../utils/finance';
 
-// ── Periodicity → number of periods per year ──────────────────────────────
 const FREQ_PER_YEAR = { monthly: 12, quarterly: 4, semiannual: 2, annual: 1 };
 const FREQ_LABEL = { monthly: 'Mensuelle', quarterly: 'Trimestrielle', semiannual: 'Semestrielle', annual: 'Annuelle' };
 
-// ── Core compound-interest simulation ──────────────────────────────────────
-// Contributions are added at the END of each contribution period (standard
-// ordinary-annuity convention), so a deposit starts earning interest only
-// from the following period.
+const PRESETS = [
+  { label: 'Épargne prudente', principal: 100000, rate: 6,  years: 5,  contrib: 3000 },
+  { label: 'Croissance',       principal: 200000, rate: 10, years: 10, contrib: 5000 },
+  { label: 'Retraite',         principal: 500000, rate: 8,  years: 20, contrib: 8000 },
+  { label: 'Court terme',      principal: 50000,  rate: 5,  years: 2,  contrib: 2000 },
+];
+
+// Contributions land at the END of each contribution period (ordinary annuity).
 function simulateInvestment({ principal, annualRate, years, capFreq, contribAmount, contribFreq }) {
   const capPerYear = FREQ_PER_YEAR[capFreq];
   const contribPerYear = FREQ_PER_YEAR[contribFreq];
   const totalCapPeriods = Math.round(years * capPerYear);
   const ratePerCapPeriod = (annualRate / 100) / capPerYear;
-
-  // How much is contributed, spread proportionally, per capitalization period.
-  // e.g. monthly capitalization + quarterly contributions of 1000
-  //      → 1000/3 credited each month, added at each month's period-end,
-  //        which is equivalent to adding 1000 every 3rd month for ordinary
-  //        annuity timing when capFreq is a multiple of contribFreq's rate.
-  // Simpler & exact approach: track on a common monthly-like grid using the
-  // capitalization period as the base unit, and add the full contribution
-  // amount at the periods that align with the contribution frequency.
   const capPeriodsPerContribPeriod = capPerYear / contribPerYear;
 
   const schedule = [];
   let balance = principal;
   let totalContributed = principal;
 
-  for (let p = 1; p <= totalCapPeriods; p++) {
+  for (let per = 1; per <= totalCapPeriods; per++) {
     const startBalance = balance;
     const interest = startBalance * ratePerCapPeriod;
     balance = startBalance + interest;
 
-    // Does a contribution land at the end of this capitalization period?
     let contribThisPeriod = 0;
     if (contribAmount > 0 && capPeriodsPerContribPeriod > 0) {
-      // Aligns every Nth capitalization period, where N = capPeriodsPerContribPeriod
-      if (Math.round(p % capPeriodsPerContribPeriod) === 0 || capPeriodsPerContribPeriod < 1) {
-        if (capPeriodsPerContribPeriod < 1) {
-          // Contributions more frequent than capitalization: add proportional share each cap period
-          contribThisPeriod = contribAmount * (contribPerYear / capPerYear);
-        } else {
-          contribThisPeriod = contribAmount;
-        }
+      if (capPeriodsPerContribPeriod < 1) {
+        contribThisPeriod = contribAmount * (contribPerYear / capPerYear);
+        balance += contribThisPeriod;
+        totalContributed += contribThisPeriod;
+      } else if (per % Math.round(capPeriodsPerContribPeriod) === 0) {
+        contribThisPeriod = contribAmount;
         balance += contribThisPeriod;
         totalContributed += contribThisPeriod;
       }
     }
 
-    schedule.push({
-      period: p,
-      startBalance,
-      interest,
-      contribution: contribThisPeriod,
-      endBalance: balance,
-    });
+    schedule.push({ period: per, startBalance, interest, contribution: contribThisPeriod, endBalance: balance });
   }
 
-  const totalInterest = balance - totalContributed;
-  return { finalBalance: balance, totalContributed, totalInterest, schedule };
+  return { finalBalance: balance, totalContributed, totalInterest: balance - totalContributed, schedule };
 }
 
-export default function InvestmentSimulator({ settings }) {
-  const [principal, setPrincipal]         = useState(100000);
-  const [annualRate, setAnnualRate]       = useState(8);
-  const [years, setYears]                 = useState(5);
-  const [capFreq, setCapFreq]             = useState('monthly');
+export default function InvestmentSimulator() {
+  const [p, setP] = useState({ principal: 100000, annualRate: 8, years: 5, capFreq: 'monthly', currency: 'HTG' });
   const [enableContrib, setEnableContrib] = useState(true);
-  const [contribAmount, setContribAmount] = useState(5000);
-  const [contribFreq, setContribFreq]     = useState('monthly');
-  const [currency, setCurrency]           = useState('HTG');
-  const [showSchedule, setShowSchedule]   = useState(false);
+  const [contrib, setContrib] = useState({ amount: 5000, freq: 'monthly' });
+  const [showSchedule, setShowSchedule] = useState(false);
 
-  const fmt = currency === 'USD' ? fmtUSD : fmtHTG;
+  const set  = (k, v) => setP(x => ({ ...x, [k]: v }));
+  const setc = (k, v) => setContrib(x => ({ ...x, [k]: v }));
+  const fmt = p.currency === 'USD' ? fmtUSD : fmtHTG;
 
   const result = useMemo(() => simulateInvestment({
-    principal: Number(principal) || 0,
-    annualRate: Number(annualRate) || 0,
-    years: Number(years) || 0,
-    capFreq,
-    contribAmount: enableContrib ? (Number(contribAmount) || 0) : 0,
-    contribFreq,
-  }), [principal, annualRate, years, capFreq, enableContrib, contribAmount, contribFreq]);
+    principal: Number(p.principal) || 0,
+    annualRate: Number(p.annualRate) || 0,
+    years: Number(p.years) || 0,
+    capFreq: p.capFreq,
+    contribAmount: enableContrib ? (Number(contrib.amount) || 0) : 0,
+    contribFreq: contrib.freq,
+  }), [p, enableContrib, contrib]);
 
-  // Chart data: sample yearly points so long durations stay readable
-  const chartData = useMemo(() => {
-    const pts = [];
-    const capPerYear = FREQ_PER_YEAR[capFreq];
-    result.schedule.forEach((row, i) => {
-      const periodInYears = (i + 1) / capPerYear;
-      // sample every capitalization period if short duration, else every year
-      const sampleEvery = result.schedule.length > 60 ? capPerYear : 1;
-      if ((i + 1) % sampleEvery === 0 || i === result.schedule.length - 1) {
-        pts.push({
-          label: periodInYears % 1 === 0 ? `An ${periodInYears}` : `P${i + 1}`,
-          investi: row.endBalance - (row.endBalance - (principal + result.schedule.slice(0, i + 1).reduce((s, r) => s + r.contribution, 0))),
-          verse: principal + result.schedule.slice(0, i + 1).reduce((s, r) => s + r.contribution, 0),
-          total: row.endBalance,
-        });
-      }
-    });
-    return pts;
-  }, [result, capFreq, principal]);
+  const scheduleStep = Math.max(1, Math.floor(result.schedule.length / 24));
+  const chartData = result.schedule.filter((_, i) => i % scheduleStep === 0);
 
   return (
     <div>
-      <div className="page-header">
+      <div className="ph">
         <div>
-          <div className="page-title"><TrendingUp size={20} style={{ marginRight: 8, verticalAlign: 'middle', color: 'var(--g1)' }}/>Simulation de Placement</div>
-          <div className="page-subtitle">Projetez la croissance d'un placement avec intérêts composés et versements périodiques</div>
+          <div className="pt">Simulation de Placement</div>
+          <div className="ps">Projetez la croissance d'un placement avec intérêts composés et versements périodiques</div>
         </div>
       </div>
 
-      <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 20, alignItems: 'start' }}>
-        {/* ── Parameters card ── */}
-        <div className="card">
-          <div className="card-hd">
-            <div className="card-title"><PiggyBank size={16} style={{ color: 'var(--g1)' }}/> Paramètres</div>
+      {/* Presets */}
+      <div className="flex g8 mb24" style={{ flexWrap: 'wrap' }}>
+        {PRESETS.map(pr => (
+          <button key={pr.label} className="btn btn-ghost btn-sm"
+            onClick={() => { setP(x => ({ ...x, principal: pr.principal, annualRate: pr.rate, years: pr.years })); setContrib(c => ({ ...c, amount: pr.contrib })); }}>
+            {pr.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="two" style={{ alignItems: 'start' }}>
+        {/* LEFT — Parameters */}
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div className="card">
+            <div className="card-hd">
+              <div className="card-title"><PiggyBank size={16} style={{ color: 'var(--g1)' }}/> Paramètres du Placement</div>
+            </div>
+            <div className="fgrid">
+              <div className="frow">
+                <div className="fg">
+                  <label className="fl">Montant initial investi</label>
+                  <input className="fi" type="number" value={p.principal} onChange={e => set('principal', e.target.value)}/>
+                </div>
+                <div className="fg">
+                  <label className="fl">Devise</label>
+                  <select className="fs" value={p.currency} onChange={e => set('currency', e.target.value)}>
+                    <option value="HTG">HTG</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </div>
+              </div>
+              <div className="fg">
+                <label className="fl" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Taux de rendement annuel</span>
+                  <span style={{ color: 'var(--g1)', fontWeight: 700 }}>{p.annualRate}%</span>
+                </label>
+                <input type="range" min="0" max="30" step="0.5" value={p.annualRate} onChange={e => set('annualRate', e.target.value)}/>
+                <div className="flex" style={{ justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+                  <span>0%</span><span>15%</span><span>30%</span>
+                </div>
+              </div>
+              <div className="fg">
+                <label className="fl" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Durée du placement</span>
+                  <span style={{ color: 'var(--g1)', fontWeight: 700 }}>{p.years} ans</span>
+                </label>
+                <input type="range" min="1" max="30" step="1" value={p.years} onChange={e => set('years', e.target.value)}/>
+                <div className="flex" style={{ justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+                  <span>1 an</span><span>15 ans</span><span>30 ans</span>
+                </div>
+              </div>
+              <div className="fg">
+                <label className="fl">Périodicité de capitalisation</label>
+                <select className="fs" value={p.capFreq} onChange={e => set('capFreq', e.target.value)}>
+                  {Object.entries(FREQ_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label">Devise</label>
-              <select className="form-input" value={currency} onChange={e => setCurrency(e.target.value)}>
-                <option value="HTG">HTG</option>
-                <option value="USD">USD</option>
-              </select>
+          {/* Contributions */}
+          <div className="card">
+            <div className="card-hd">
+              <div className="card-title"><TrendingUp size={16} style={{ color: 'var(--blue)' }}/> Versements additionnels</div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEnableContrib(x => !x)}>
+                {enableContrib ? 'Supprimer' : 'Ajouter'}
+              </button>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">Montant initial investi</label>
-              <input className="form-input" type="number" min="0" value={principal}
-                onChange={e => setPrincipal(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Taux de rendement annuel (%)</label>
-              <input className="form-input" type="number" min="0" step="0.1" value={annualRate}
-                onChange={e => setAnnualRate(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Durée du placement (années)</label>
-              <input className="form-input" type="number" min="0" step="0.5" value={years}
-                onChange={e => setYears(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Périodicité de capitalisation</label>
-              <select className="form-input" value={capFreq} onChange={e => setCapFreq(e.target.value)}>
-                {Object.entries(FREQ_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
-
-            <hr className="divider" />
-
-            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input type="checkbox" checked={enableContrib} onChange={e => setEnableContrib(e.target.checked)} id="contribToggle" />
-              <label htmlFor="contribToggle" className="form-label" style={{ margin: 0 }}>Versements additionnels réguliers</label>
-            </div>
-
             {enableContrib && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">Montant du versement périodique</label>
-                  <input className="form-input" type="number" min="0" value={contribAmount}
-                    onChange={e => setContribAmount(e.target.value)} />
+              <div className="frow">
+                <div className="fg">
+                  <label className="fl">Montant du versement</label>
+                  <input className="fi" type="number" value={contrib.amount} onChange={e => setc('amount', e.target.value)}/>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Fréquence des versements</label>
-                  <select className="form-input" value={contribFreq} onChange={e => setContribFreq(e.target.value)}>
+                <div className="fg">
+                  <label className="fl">Fréquence</label>
+                  <select className="fs" value={contrib.freq} onChange={e => setc('freq', e.target.value)}>
                     {Object.entries(FREQ_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
-              </>
+              </div>
             )}
+            {!enableContrib && <div style={{ fontSize: 13, color: 'var(--text3)' }}>Ajoutez des versements périodiques pour accélérer la croissance de votre capital.</div>}
           </div>
         </div>
 
-        {/* ── Results ── */}
-        <div>
-          <div className="kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
-            <div className="card kpi-card">
-              <div className="kpi-label">Montant à l'échéance</div>
-              <div className="kpi-value" style={{ color: 'var(--g1)' }}>{fmt(result.finalBalance)}</div>
+        {/* RIGHT — Results */}
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div className="sim-res">
+            <div className="sim-box">
+              <div className="sim-lbl">Montant à l'échéance</div>
+              <div className="sim-val" style={{ color: 'var(--g1)' }}>{fmt(result.finalBalance)}</div>
             </div>
-            <div className="card kpi-card">
-              <div className="kpi-label">Total versé (initial + versements)</div>
-              <div className="kpi-value">{fmt(result.totalContributed)}</div>
+            <div className="sim-box">
+              <div className="sim-lbl">Total versé</div>
+              <div className="sim-val">{fmt(result.totalContributed)}</div>
             </div>
-            <div className="card kpi-card">
-              <div className="kpi-label">Total des intérêts générés</div>
-              <div className="kpi-value" style={{ color: 'var(--g1)' }}>{fmt(result.totalInterest)}</div>
+            <div className="sim-box">
+              <div className="sim-lbl">Total intérêts générés</div>
+              <div className="sim-val" style={{ color: 'var(--g1)' }}>{fmt(result.totalInterest)}</div>
             </div>
           </div>
 
+          {/* Répartition */}
           <div className="card">
-            <div className="card-hd">
-              <div className="card-title">Évolution du capital</div>
+            <div className="card-hd"><div className="card-title">Répartition Versements / Intérêts</div></div>
+            <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 10 }}>
+              <div style={{ background: 'var(--blue)', flex: result.totalContributed }}/>
+              <div style={{ background: 'var(--g1)', flex: Math.max(result.totalInterest, 0) }}/>
             </div>
-            <div style={{ width: '100%', height: 280 }}>
-              <ResponsiveContainer>
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border2)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={v => (v / 1000).toFixed(0) + 'k'} />
-                  <Tooltip formatter={(v) => fmt(v)} />
-                  <Legend />
-                  <Area type="monotone" dataKey="verse" name="Sommes versées" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.25} />
-                  <Area type="monotone" dataKey="total" name="Capital total" stackId="2" stroke="#00A86B" fill="#00A86B" fillOpacity={0.35} />
+            <div className="flex g16" style={{ fontSize: 12 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--blue)', display: 'inline-block' }}/> Versé : {Math.round(result.totalContributed / result.finalBalance * 100)}%</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--g1)', display: 'inline-block' }}/> Intérêts : {Math.round(result.totalInterest / result.finalBalance * 100)}%</span>
+            </div>
+          </div>
+
+          {/* Growth curve */}
+          <div className="card">
+            <div className="card-hd"><div className="card-title">Évolution du capital</div></div>
+            <div style={{ height: 220 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <defs><linearGradient id="gi" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00A86B" stopOpacity={.25}/><stop offset="95%" stopColor="#00A86B" stopOpacity={0}/></linearGradient></defs>
+                  <XAxis dataKey="period" stroke="#8A97A8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => `P${v}`} interval="preserveStartEnd"/>
+                  <YAxis stroke="#8A97A8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => `${Math.round(v/1000)}k`}/>
+                  <Tooltip formatter={v => fmt(v)} labelFormatter={v => `Période ${v}`}/>
+                  <Area type="monotone" dataKey="endBalance" name="Capital total" stroke="#00A86B" strokeWidth={2} fill="url(#gi)"/>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -224,7 +214,7 @@ export default function InvestmentSimulator({ settings }) {
         </div>
       </div>
 
-      {/* ── Detailed schedule ── */}
+      {/* Detailed schedule */}
       <div className="card mt24">
         <div className="card-hd">
           <div className="card-title"><Calendar size={16} style={{ color: 'var(--g1)' }}/> Tableau détaillé par période</div>
