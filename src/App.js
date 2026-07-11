@@ -3,6 +3,7 @@ import './styles.css';
 import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
 import LoginScreen  from './components/LoginScreen';
+import ResetPasswordScreen from './components/ResetPasswordScreen';
 import Dashboard     from './components/Dashboard';
 import Accounts      from './components/Accounts';
 import Transactions  from './components/Transactions';
@@ -24,6 +25,14 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [navOpen, setNavOpen] = useState(false);
   const ft = useFinTrack();
+  // Lien "mot de passe oublie" clique depuis l'email : Firebase redirige ici
+  // avec ?mode=resetPassword&oobCode=... au lieu de sa page generique.
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mode') === 'resetPassword' && urlParams.get('oobCode')) {
+    return <ResetPasswordScreen
+      oobCode={urlParams.get('oobCode')}
+      onDone={() => { window.location.href = window.location.pathname; }}/>;
+  }
   if (ft.authState==='loading') return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
       <div style={{textAlign:'center'}}>

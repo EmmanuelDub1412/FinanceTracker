@@ -10,6 +10,7 @@ import {
 import {
   signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
+  verifyPasswordResetCode, confirmPasswordReset,
 } from 'firebase/auth';
 import { auth, googleProvider, db as firestore } from './firebase';
 
@@ -139,8 +140,22 @@ export const signUpWithEmail = async (email, password) => {
   return result.user;
 };
 
+// Renvoie l'utilisateur vers cette meme app (au lieu de la page generique
+// Firebase) apres avoir clique sur le lien recu par email.
+const actionCodeSettings = {
+  url: window.location.origin + window.location.pathname,
+};
+
 export const resetPassword = async (email) => {
-  await sendPasswordResetEmail(auth, email);
+  await sendPasswordResetEmail(auth, email, actionCodeSettings);
+};
+
+// Verifie que le code du lien de reinitialisation est valide et retourne
+// l'email associe. Lance une erreur si le lien est invalide/expire.
+export const verifyResetCode = async (oobCode) => verifyPasswordResetCode(auth, oobCode);
+
+export const confirmReset = async (oobCode, newPassword) => {
+  await confirmPasswordReset(auth, oobCode, newPassword);
 };
 
 // Traduit les codes d'erreur Firebase en messages lisibles en francais.
