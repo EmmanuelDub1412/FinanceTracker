@@ -228,6 +228,8 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
   const [editing, setEditing] = useState(null);
   const [newKind, setNewKind] = useState('receivable');
   const [openHistory, setOpenHistory] = useState({});
+  const [dispCur, setDispCur] = useState('HTG');
+  const fmtC = (v) => dispCur === 'USD' ? fmt(v / rate, 'USD') : fmt(v, 'HTG');
 
   const toggleHistory = (id) => setOpenHistory(h => ({ ...h, [id]: !h[id] }));
 
@@ -246,11 +248,9 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
     if (l.kind === 'bond') dueDate = l.nextPaymentDate || null;
     const dLeft = dueDate ? daysUntil(dueDate) : null;
     const alertFired = (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
-    const valueHTG = toHTG(
-      l.kind === 'loan' ? (Number(l.remainingBalance) || 0) : (Number(l.amount) || 0),
-      l.currency, rate,
-    );
-    return { ...l, dueDate, dLeft, alertFired, valueHTG };
+    const nativeAmount = l.kind === 'loan' ? (Number(l.remainingBalance) || 0) : (Number(l.amount) || 0);
+    const valueHTG = toHTG(nativeAmount, l.currency, rate);
+    return { ...l, dueDate, dLeft, alertFired, nativeAmount, valueHTG };
   }), [loans, rate]);
 
   const groups = {
@@ -260,18 +260,31 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
     bond: enriched.filter(l => l.kind === 'bond'),
   };
 
+  // Pour chaque categorie : total combine (converti, devise au choix) +
+  // sous-totaux natifs (non convertis) par devise.
+  const nativeByCurrency = (items) => ({
+    HTG: items.filter(l => l.currency === 'HTG').reduce((s, l) => s + l.nativeAmount, 0),
+    USD: items.filter(l => l.currency === 'USD').reduce((s, l) => s + l.nativeAmount, 0),
+  });
+
   const totalReceivable = groups.receivable.reduce((s, l) => s + l.valueHTG, 0);
   const totalPayable = groups.payable.reduce((s, l) => s + l.valueHTG, 0);
   const totalLoanRemaining = groups.loan.reduce((s, l) => s + l.valueHTG, 0);
   const totalBondValue = groups.bond.reduce((s, l) => s + l.valueHTG, 0);
 
+  const nativeReceivable = nativeByCurrency(groups.receivable);
+  const nativePayable = nativeByCurrency(groups.payable);
+  const nativeLoan = nativeByCurrency(groups.loan);
+  const nativeBond = nativeByCurrency(groups.bond);
+
   const handleSave = (data) => { editing ? onUpdate(editing.id, data) : onAdd(data); setShowModal(false); setEditing(null); };
   const openNew = (kind) => { setNewKind(kind); setEditing(null); setShowModal(true); };
 
-  const KPI = ({ icon: Icon, label, value, cls }) => (
+  const KPI = ({ icon: Icon, label, value, native, cls }) => (
     <div className={`kpi ${cls}`}>
       <div className="kpi-lbl"><Icon size={12} /> {label}</div>
-      <div className={`kpi-val ${cls}`}>{fmtHTG(value)}</div>
+      <div className={`kpi-val ${cls}`}>{fmtC(value)}</div>
+      <div className="kpi-sub">{fmtHTG(native.HTG)} · {fmt(native.USD, 'USD')}</div>
     </div>
   );
 
@@ -282,16 +295,21 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
           <div className="pt">{t('loansCredits.title')}</div>
           <div className="ps">{t('loansCredits.subtitle')}</div>
         </div>
-        <button className="btn btn-primary" onClick={() => openNew('receivable')}>
-          <Plus size={15} /> {t('loansCredits.add')}
-        </button>
+        <div className="flex g8">
+          <button className="lang-toggle" onClick={() => setDispCur(c => c === 'HTG' ? 'USD' : 'HTG')} title="HTG / USD">
+            {dispCur}
+          </button>
+          <button className="btn btn-primary" onClick={() => openNew('receivable')}>
+            <Plus size={15} /> {t('loansCredits.add')}
+          </button>
+        </div>
       </div>
 
       <div className="kpi-grid mb24">
-        <KPI icon={ArrowDownCircle} label={t('loansCredits.totalReceivable')} value={totalReceivable} cls="green" />
-        <KPI icon={ArrowUpCircle} label={t('loansCredits.totalPayable')} value={totalPayable} cls="red" />
-        <KPI icon={Landmark} label={t('loansCredits.totalLoanRemaining')} value={totalLoanRemaining} cls="blue" />
-        <KPI icon={TrendingUp} label={t('loansCredits.totalBondValue')} value={totalBondValue} cls="teal" />
+        <KPI icon={ArrowDownCircle} label={t('loansCredits.totalReceivable')} value={totalReceivable} native={nativeReceivable} cls="green" />
+        <KPI icon={ArrowUpCircle} label={t('loansCredits.totalPayable')} value={totalPayable} native={nativePayable} cls="red" />
+        <KPI icon={Landmark} label={t('loansCredits.totalLoanRemaining')} value={totalLoanRemaining} native={nativeLoan} cls="blue" />
+        <KPI icon={TrendingUp} label={t('loansCredits.totalBondValue')} value={totalBondValue} native={nativeBond} cls="teal" />
       </div>
 
       {enriched.filter(l => l.alertFired).map(l => (

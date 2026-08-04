@@ -141,7 +141,9 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
   const [filterType,  setFilterType]  = useState('all');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterAcc,   setFilterAcc]   = useState('');
+  const [dispCur,     setDispCur]     = useState('HTG');
   const rate = Number(settings?.usdToHtg)||130;
+  const fmtC = (v) => dispCur==='USD' ? fmt(v/rate,'USD') : fmt(v,'HTG');
 
   const accMap = useMemo(()=>Object.fromEntries(accounts.map(a=>[a.id,a.name])),[accounts]);
 
@@ -153,10 +155,20 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
     return true;
   }),[transactions,filterType,filterMonth,filterAcc,search]);
 
+  const confirmed = useMemo(()=>filtered.filter(t=>t.status==='confirmed'),[filtered]);
+  const nativeSums = (txs) => ({
+    HTG: txs.filter(t=>t.currency==='HTG').reduce((s,t)=>s+Number(t.amount),0),
+    USD: txs.filter(t=>t.currency==='USD').reduce((s,t)=>s+Number(t.amount),0),
+  });
+  const incomeTx  = useMemo(()=>confirmed.filter(t=>t.txType==='income'),[confirmed]);
+  const expenseTx = useMemo(()=>confirmed.filter(t=>t.txType==='expense'),[confirmed]);
   const totals = useMemo(()=>({
-    income:  filtered.filter(t=>t.txType==='income'&&t.status==='confirmed').reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),
-    expense: filtered.filter(t=>t.txType==='expense'&&t.status==='confirmed').reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),
-  }),[filtered,rate]);
+    income:  incomeTx.reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),
+    expense: expenseTx.reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),
+  }),[incomeTx,expenseTx,rate]);
+  const nativeIncome  = useMemo(()=>nativeSums(incomeTx),[incomeTx]);
+  const nativeExpense = useMemo(()=>nativeSums(expenseTx),[expenseTx]);
+  const nativeNet = { HTG: nativeIncome.HTG-nativeExpense.HTG, USD: nativeIncome.USD-nativeExpense.USD };
 
   const handleSave = (data)=>{ editing?onUpdate(editing.id,data):onAdd(data); setShowModal(false);setEditing(null); };
   const fmtDate = d=>{if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
@@ -168,15 +180,35 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
           <div className="pt">{t('transactions.title')}</div>
           <div className="ps">{filtered.length} {t('dashboard.transactions')}</div>
         </div>
-        <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}>
-          <Plus size={15}/> {t('transactions.new')}
-        </button>
+        <div className="flex g8">
+          <button className="lang-toggle" onClick={()=>setDispCur(c=>c==='HTG'?'USD':'HTG')} title="HTG / USD">
+            {dispCur}
+          </button>
+          <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}>
+            <Plus size={15}/> {t('transactions.new')}
+          </button>
+        </div>
       </div>
 
       <div className="kpi-grid mb16">
-        <div className="kpi"><div className="kpi-accent green"><ArrowDownCircle size={18}/></div><div className="kpi-lbl">{t('transactions.income')}</div><div className="kpi-val green">{fmtHTG(totals.income)}</div></div>
-        <div className="kpi"><div className="kpi-accent" style={{background:'var(--red-bg)',color:'var(--red)'}}><ArrowUpCircle size={18}/></div><div className="kpi-lbl">{t('transactions.expense')}</div><div className="kpi-val red">{fmtHTG(totals.expense)}</div></div>
-        <div className={`kpi`}><div className={`kpi-accent ${totals.income-totals.expense>=0?'teal':''}`} style={totals.income-totals.expense<0?{background:'var(--red-bg)',color:'var(--red)'}:{}}><TrendingUp size={18}/></div><div className="kpi-lbl">{t('transactions.net')}</div><div className={`kpi-val ${totals.income-totals.expense>=0?'teal':'red'}`}>{fmtHTG(totals.income-totals.expense)}</div></div>
+        <div className="kpi">
+          <div className="kpi-accent green"><ArrowDownCircle size={18}/></div>
+          <div className="kpi-lbl">{t('transactions.income')}</div>
+          <div className="kpi-val green">{fmtC(totals.income)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeIncome.HTG)} · {fmt(nativeIncome.USD,'USD')}</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-accent" style={{background:'var(--red-bg)',color:'var(--red)'}}><ArrowUpCircle size={18}/></div>
+          <div className="kpi-lbl">{t('transactions.expense')}</div>
+          <div className="kpi-val red">{fmtC(totals.expense)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeExpense.HTG)} · {fmt(nativeExpense.USD,'USD')}</div>
+        </div>
+        <div className={`kpi`}>
+          <div className={`kpi-accent ${totals.income-totals.expense>=0?'teal':''}`} style={totals.income-totals.expense<0?{background:'var(--red-bg)',color:'var(--red)'}:{}}><TrendingUp size={18}/></div>
+          <div className="kpi-lbl">{t('transactions.net')}</div>
+          <div className={`kpi-val ${totals.income-totals.expense>=0?'teal':'red'}`}>{fmtC(totals.income-totals.expense)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeNet.HTG)} · {fmt(nativeNet.USD,'USD')}</div>
+        </div>
       </div>
 
       <div className="card mb16" style={{padding:14}}>
