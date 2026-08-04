@@ -6,14 +6,24 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 const PIE_COLORS = ['#00C853','#2979FF','#00BFA5','#FFB300','#FF5252','#AA00FF','#FF6D00'];
 
-export default function Dashboard({ accounts, transactions, savings, settings, onNav }) {
+export default function Dashboard({ accounts, transactions, savings, loans=[], settings, onNav }) {
   const { t, tId, lang } = useLanguage();
   const MONTHS = t('months');
   const rate = Number(settings?.usdToHtg)||130;
   const now  = new Date();
 
   const balances = useMemo(()=>accounts.map(a=>({...a,balance:computeBalance(a,transactions)})),[accounts,transactions]);
-  const totalNet = useMemo(()=>balances.reduce((s,a)=>s+toHTG(a.balance,a.currency,rate),0),[balances,rate]);
+  const accountsNet = useMemo(()=>balances.reduce((s,a)=>s+toHTG(a.balance,a.currency,rate),0),[balances,rate]);
+
+  // Creances/obligations = actif (+), dettes/prets restants = passif (-)
+  const loansNet = useMemo(()=>loans.reduce((s,l)=>{
+    if (l.kind==='receivable' || l.kind==='bond') return s+toHTG(Number(l.amount)||0,l.currency,rate);
+    if (l.kind==='payable') return s-toHTG(Number(l.amount)||0,l.currency,rate);
+    if (l.kind==='loan') return s-toHTG(Number(l.remainingBalance)||0,l.currency,rate);
+    return s;
+  },0),[loans,rate]);
+
+  const totalNet = accountsNet + loansNet;
 
   const thisMonth = useMemo(()=>transactions.filter(t=>{
     const d=new Date(t.date);

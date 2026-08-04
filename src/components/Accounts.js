@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Building2, CreditCard, Banknote, PiggyBank, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { Building2, CreditCard, Banknote, PiggyBank, Smartphone, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { fmtHTG, fmtUSD, fmt, toHTG, computeBalance, ACCOUNT_TYPES } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -8,6 +8,7 @@ const TYPE_ICONS = {
   credit: { Icon: CreditCard, cls: 'credit' },
   cash:   { Icon: Banknote,   cls: 'cash'   },
   saving: { Icon: PiggyBank,  cls: 'saving' },
+  mobile: { Icon: Smartphone, cls: 'mobile' },
 };
 
 function AccountModal({ account, onSave, onClose }) {
@@ -128,9 +129,11 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
     credit: enriched.filter(a=>a.type==='credit'),
     cash:   enriched.filter(a=>a.type==='cash'),
     saving: enriched.filter(a=>a.type==='saving'),
+    mobile: enriched.filter(a=>a.type==='mobile'),
   };
   const groupLabels = {
     bank:t('accounts.groupBank'), credit:t('accounts.groupCredit'), cash:t('accounts.groupCash'), saving:t('accounts.groupSaving'),
+    mobile:t('accounts.groupMobile'),
   };
 
   return (
@@ -175,7 +178,7 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
         </div>
       ))}
 
-      {[['bank','green'],['credit','red'],['cash','teal'],['saving','blue']].map(([key])=>
+      {[['bank','green'],['credit','red'],['cash','teal'],['saving','blue'],['mobile','amber']].map(([key])=>
         groups[key].length>0&&(
           <div key={key} className="mb24">
             <div className="sl">{groupLabels[key]}</div>

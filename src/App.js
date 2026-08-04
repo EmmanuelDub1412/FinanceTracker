@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './styles.css';
-import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu, HandCoins } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
 import { useLanguage } from './i18n/LanguageContext';
 import LoginScreen  from './components/LoginScreen';
@@ -9,6 +9,7 @@ import Dashboard     from './components/Dashboard';
 import Accounts      from './components/Accounts';
 import Transactions  from './components/Transactions';
 import Savings       from './components/Savings';
+import LoansCredits  from './components/LoansCredits';
 import LoanSimulator from './components/LoanSimulator';
 import InvestmentSimulator from './components/InvestmentSimulator';
 import Settings      from './components/Settings';
@@ -16,6 +17,7 @@ const NAV = [
   {id:'dashboard',    labelKey:'nav.dashboard',    Icon:LayoutDashboard, group:'main'},
   {id:'accounts',     labelKey:'nav.accounts',     Icon:Wallet,          group:'main'},
   {id:'transactions', labelKey:'nav.transactions', Icon:ArrowLeftRight,  group:'main'},
+  {id:'loansCredits', labelKey:'nav.loansCredits', Icon:HandCoins,       group:'main'},
   {id:'savings',      labelKey:'nav.savings',      Icon:Target,          group:'planning'},
   {id:'loan',         labelKey:'nav.loan',         Icon:Calculator,      group:'planning'},
   {id:'investment',   labelKey:'nav.investment',   Icon:PiggyBank,       group:'planning'},
@@ -99,9 +101,10 @@ export default function App() {
         })}
       </nav>
       <main className="main">
-        {page==='dashboard'    && <Dashboard    accounts={ft.accounts} transactions={ft.transactions} savings={ft.savings} settings={ft.settings} onNav={setPage}/>}
+        {page==='dashboard'    && <Dashboard    accounts={ft.accounts} transactions={ft.transactions} savings={ft.savings} loans={ft.loans} settings={ft.settings} onNav={setPage}/>}
         {page==='accounts'     && <Accounts     accounts={ft.accounts} transactions={ft.transactions} settings={ft.settings} onAdd={ft.addAccount} onUpdate={ft.updateAccount} onDelete={ft.deleteAccount}/>}
         {page==='transactions' && <Transactions transactions={ft.transactions} accounts={ft.accounts} settings={ft.settings} onAdd={ft.addTransaction} onUpdate={ft.updateTransaction} onDelete={ft.deleteTransaction}/>}
+        {page==='loansCredits' && <LoansCredits loans={ft.loans} settings={ft.settings} onAdd={ft.addLoan} onUpdate={ft.updateLoan} onDelete={ft.deleteLoan}/>}
         {page==='savings'      && <Savings      savings={ft.savings} onAdd={ft.addSaving} onUpdate={ft.updateSaving} onDelete={ft.deleteSaving}/>}
         {page==='loan'         && <LoanSimulator settings={ft.settings}/>}
         {page==='investment'   && <InvestmentSimulator settings={ft.settings}/>}

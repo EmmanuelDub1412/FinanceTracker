@@ -62,5 +62,6 @@ export const ACCOUNT_TYPES = [
   {id:'credit',label:'Carte Crédit', icon:'💳',color:'#DC2626'},
   {id:'cash',  label:'Cash',         icon:'💵',color:'#16A34A'},
   {id:'saving',label:'Épargne',      icon:'🏧',color:'#7C3AED'},
+  {id:'mobile',label:'Monnaie Mobile',icon:'📱',color:'#D97706'},
 ];
 export const getAccType = (id) => ACCOUNT_TYPES.find(a=>a.id===id)||ACCOUNT_TYPES[0];

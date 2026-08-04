@@ -51,7 +51,7 @@ export default function InvestmentSimulator() {
     { key: 'preset_retirement',   principal: 500000, rate: 8,  years: 20, contrib: 8000 },
     { key: 'preset_short',        principal: 50000,  rate: 5,  years: 2,  contrib: 2000 },
   ];
-  const [p, setP] = useState({ principal: 100000, annualRate: 8, years: 5, capFreq: 'monthly', currency: 'HTG' });
+  const [p, setP] = useState({ principal: 100000, annualRate: 8, years: 5, durationUnit: 'years', capFreq: 'monthly', currency: 'HTG' });
   const [enableContrib, setEnableContrib] = useState(true);
   const [contrib, setContrib] = useState({ amount: 5000, freq: 'monthly' });
   const [showSchedule, setShowSchedule] = useState(false);
@@ -60,14 +60,16 @@ export default function InvestmentSimulator() {
   const setc = (k, v) => setContrib(x => ({ ...x, [k]: v }));
   const fmt = p.currency === 'USD' ? fmtUSD : fmtHTG;
 
+  const yearsForSim = p.durationUnit === 'months' ? (Number(p.years) || 0) / 12 : (Number(p.years) || 0);
+
   const result = useMemo(() => simulateInvestment({
     principal: Number(p.principal) || 0,
     annualRate: Number(p.annualRate) || 0,
-    years: Number(p.years) || 0,
+    years: yearsForSim,
     capFreq: p.capFreq,
     contribAmount: enableContrib ? (Number(contrib.amount) || 0) : 0,
     contribFreq: contrib.freq,
-  }), [p, enableContrib, contrib]);
+  }), [p, enableContrib, contrib, yearsForSim]);
 
   const scheduleStep = Math.max(1, Math.floor(result.schedule.length / 24));
   const chartData = result.schedule.filter((_, i) => i % scheduleStep === 0);
@@ -85,7 +87,7 @@ export default function InvestmentSimulator() {
       <div className="flex g8 mb24" style={{ flexWrap: 'wrap' }}>
         {PRESETS.map(pr => (
           <button key={pr.key} className="btn btn-ghost btn-sm"
-            onClick={() => { setP(x => ({ ...x, principal: pr.principal, annualRate: pr.rate, years: pr.years })); setContrib(c => ({ ...c, amount: pr.contrib })); }}>
+            onClick={() => { setP(x => ({ ...x, principal: pr.principal, annualRate: pr.rate, years: pr.years, durationUnit: 'years' })); setContrib(c => ({ ...c, amount: pr.contrib })); }}>
             {t(`investment.${pr.key}`)}
           </button>
         ))}
@@ -117,19 +119,35 @@ export default function InvestmentSimulator() {
                   <span>{t('investment.annualReturn')}</span>
                   <span style={{ color: 'var(--g1)', fontWeight: 700 }}>{p.annualRate}%</span>
                 </label>
-                <input type="range" min="0" max="30" step="0.5" value={p.annualRate} onChange={e => set('annualRate', e.target.value)}/>
+                <input type="range" min="0" max="100" step="0.5" value={p.annualRate} onChange={e => set('annualRate', e.target.value)}/>
                 <div className="flex" style={{ justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
-                  <span>0%</span><span>15%</span><span>30%</span>
+                  <span>0%</span><span>50%</span><span>100%</span>
                 </div>
               </div>
               <div className="fg">
-                <label className="fl" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <label className="fl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>{t('investment.duration')}</span>
-                  <span style={{ color: 'var(--g1)', fontWeight: 700 }}>{p.years} {t('investment.years')}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: 'var(--g1)', fontWeight: 700 }}>
+                      {p.years} {p.durationUnit === 'months' ? t('investment.monthsUnit') : t('investment.years')}
+                    </span>
+                    <span className="flex g4">
+                      <button type="button" className={`btn btn-sm ${p.durationUnit === 'years' ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => setP(x => ({ ...x, durationUnit: 'years', years: Math.max(1, Math.round((Number(x.years) || 0) / (x.durationUnit === 'months' ? 12 : 1))) }))}>
+                        {t('investment.years')}
+                      </button>
+                      <button type="button" className={`btn btn-sm ${p.durationUnit === 'months' ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => setP(x => ({ ...x, durationUnit: 'months', years: Math.max(1, Math.round((Number(x.years) || 0) * (x.durationUnit === 'months' ? 1 : 12))) }))}>
+                        {t('investment.monthsUnit')}
+                      </button>
+                    </span>
+                  </span>
                 </label>
-                <input type="range" min="1" max="30" step="1" value={p.years} onChange={e => set('years', e.target.value)}/>
+                <input type="range" min="1" max={p.durationUnit === 'months' ? 360 : 30} step="1" value={p.years} onChange={e => set('years', e.target.value)}/>
                 <div className="flex" style={{ justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
-                  <span>1</span><span>15</span><span>30</span>
+                  {p.durationUnit === 'months'
+                    ? (<><span>1</span><span>180</span><span>360</span></>)
+                    : (<><span>1</span><span>15</span><span>30</span></>)}
                 </div>
               </div>
               <div className="fg">

@@ -14,6 +14,7 @@ export default function useFinTrack() {
   const [accounts,     setAccounts]     = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [savings,      setSavings]      = useState([]);
+  const [loans,        setLoans]        = useState([]);
   const [settings,     setSettings]     = useState({ usdToHtg: 130 });
   const [loading,      setLoading]      = useState(false);
   const [syncing,      setSyncing]      = useState(false);
@@ -25,10 +26,11 @@ export default function useFinTrack() {
   // autres et n'efface pas les donnees deja chargees avec succes.
   const fetchAll = useCallback(async () => {
     setSyncing(true);
-    const [accsR, txsR, savsR, rateR] = await Promise.allSettled([
+    const [accsR, txsR, savsR, loansR, rateR] = await Promise.allSettled([
       db.readAll('accounts'),
       db.readAll('transactions'),
       db.readAll('savings'),
+      db.readAll('loans'),
       db.getSetting('usdToHtg'),
     ]);
     const failures = [];
@@ -46,6 +48,11 @@ export default function useFinTrack() {
       setSavings(savsR.value.filter(s => s.id));
     } else {
       failures.push(savsR.reason?.message || String(savsR.reason));
+    }
+    if (loansR.status === 'fulfilled') {
+      setLoans(loansR.value.filter(l => l.id));
+    } else {
+      failures.push(loansR.reason?.message || String(loansR.reason));
     }
     if (rateR.status === 'fulfilled') {
       if (rateR.value) setSettings(s => ({ ...s, usdToHtg: Number(rateR.value) }));
@@ -69,7 +76,7 @@ export default function useFinTrack() {
       if (firebaseUser) {
         fetchAll();
       } else {
-        setAccounts([]); setTransactions([]); setSavings([]);
+        setAccounts([]); setTransactions([]); setSavings([]); setLoans([]);
       }
     });
     return unsubscribe;
@@ -125,7 +132,7 @@ export default function useFinTrack() {
   const logout = useCallback(async () => {
     await signOutUser();
     setUser(null);
-    setAccounts([]); setTransactions([]); setSavings([]);
+    setAccounts([]); setTransactions([]); setSavings([]); setLoans([]);
   }, []);
   // ── CRUD helpers ───────────────────────────────────────────────────────
   const refresh = useCallback(() => fetchAll(), [fetchAll]);
@@ -150,6 +157,10 @@ export default function useFinTrack() {
   const addSaving    = (data) => withSync(() => db.append('savings', { ...data, id: genId() }));
   const updateSaving = (id, data) => withSync(() => db.update('savings', id, data));
   const deleteSaving = (id) => withSync(() => db.delete('savings', id));
+  // loans & credits (creances, dettes, prets, obligations)
+  const addLoan    = (data) => withSync(() => db.append('loans', { ...data, id: genId() }));
+  const updateLoan = (id, data) => withSync(() => db.update('loans', id, data));
+  const deleteLoan = (id) => withSync(() => db.delete('loans', id));
   // settings
   const saveSetting = async (key, value) => {
     await db.setSetting(key, value);
@@ -159,12 +170,13 @@ export default function useFinTrack() {
     // auth
     authState, user, gapiReady: true, login, loginWithEmail, signUp, forgotPassword, logout,
     // data
-    accounts, transactions, savings, settings,
+    accounts, transactions, savings, loans, settings,
     loading, syncing, error, refresh,
     // CRUD
     addAccount, updateAccount, deleteAccount,
     addTransaction, updateTransaction, deleteTransaction,
     addSaving, updateSaving, deleteSaving,
+    addLoan, updateLoan, deleteLoan,
     saveSetting,
     // helpers
     setError,
