@@ -51,8 +51,13 @@ function AccountModal({ account, onSave, onClose }) {
             </div>
           </div>
           <div className="fg">
-            <label className="fl">{t('accounts.m_initial')}</label>
-            <input className="fi" type="number" value={form.initialBalance} onChange={e=>set('initialBalance',e.target.value)}/>
+            <label className="fl">{isCredit ? t('accounts.m_initialUsed') : t('accounts.m_initial')}</label>
+            <input
+              className="fi"
+              type="number"
+              value={isCredit ? Math.abs(Number(form.initialBalance)||0) : form.initialBalance}
+              onChange={e=>set('initialBalance', isCredit ? -Math.abs(Number(e.target.value)||0) : e.target.value)}
+            />
           </div>
           {isCredit && (
             <div className="fg">
