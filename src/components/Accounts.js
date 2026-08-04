@@ -15,7 +15,7 @@ function AccountModal({ account, onSave, onClose }) {
   const { t, tId } = useLanguage();
   const [form, setForm] = useState(account || {
     name:'', type:'bank', currency:'HTG',
-    initialBalance:0, creditLimit:'',
+    initialBalance:0, creditLimit:'', accountNumber:'', cardLast4:'',
     alertEnabled:false, alertThreshold:'', notes:'',
   });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
@@ -64,6 +64,18 @@ function AccountModal({ account, onSave, onClose }) {
             <div className="fg">
               <label className="fl">{t('accounts.m_creditLimit')} ({form.currency})</label>
               <input className="fi" type="number" value={form.creditLimit} onChange={e=>set('creditLimit',e.target.value)} placeholder="ex. 140000"/>
+            </div>
+          )}
+          {isCredit ? (
+            <div className="fg">
+              <label className="fl">{t('accounts.m_cardLast4')}</label>
+              <input className="fi" value={form.cardLast4||''} maxLength={4} inputMode="numeric"
+                onChange={e=>set('cardLast4', e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="ex. 4432"/>
+            </div>
+          ) : (
+            <div className="fg">
+              <label className="fl">{t('accounts.m_accountNumber')}</label>
+              <input className="fi" value={form.accountNumber||''} onChange={e=>set('accountNumber',e.target.value)} placeholder={t('accounts.m_accountNumberPh')}/>
             </div>
           )}
           <hr className="div"/>
@@ -217,7 +229,11 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
                       <div className={`acc-icon-wrap ${cls}`}><Icon size={20}/></div>
                       <div>
                         <div className="acc-nm">{a.name}</div>
-                        <div className="acc-tp">{a.currency}</div>
+                        <div className="acc-tp">
+                          {a.currency}
+                          {a.isCredit && a.cardLast4 && ` · •••• ${a.cardLast4}`}
+                          {!a.isCredit && a.accountNumber && ` · ${a.accountNumber}`}
+                        </div>
                       </div>
                     </div>
                     {a.isCredit ? (
