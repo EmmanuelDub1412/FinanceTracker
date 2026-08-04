@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, Scale, Wallet, ArrowRight } from 'lucide-react';
 import { fmtHTG, fmtUSD, toHTG, computeBalance, getCat } from '../utils/finance';
@@ -11,6 +11,11 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
   const MONTHS = t('months');
   const rate = Number(settings?.usdToHtg)||130;
   const now  = new Date();
+
+  // Tous les montants du tableau de bord sont agreges en HTG en interne ;
+  // ce toggle ne change que l'affichage (conversion a la volee au clic).
+  const [dispCur, setDispCur] = useState('HTG');
+  const fmtC = (v) => dispCur==='USD' ? fmtUSD(v/rate) : fmtHTG(v);
 
   const balances = useMemo(()=>accounts.map(a=>({...a,balance:computeBalance(a,transactions)})),[accounts,transactions]);
   const accountsNet = useMemo(()=>balances.reduce((s,a)=>s+toHTG(a.balance,a.currency,rate),0),[balances,rate]);
@@ -56,7 +61,7 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
 
   const TT = ({active,payload,label})=>{
     if(!active||!payload?.length) return null;
-    return <div className="ctt"><div style={{fontWeight:600,marginBottom:4}}>{label}</div>{payload.map(p=><div key={p.name} style={{color:p.color,marginTop:2}}>{p.name}: {fmtHTG(p.value)}</div>)}</div>;
+    return <div className="ctt"><div style={{fontWeight:600,marginBottom:4}}>{label}</div>{payload.map(p=><div key={p.name} style={{color:p.color,marginTop:2}}>{p.name}: {fmtC(p.value)}</div>)}</div>;
   };
 
   return (
@@ -66,31 +71,36 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
           <div className="pt">{t('dashboard.title')}</div>
           <div className="ps">{now.toLocaleDateString(lang==='en'?'en-US':'fr-HT',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
         </div>
-        <button className="btn btn-primary" onClick={()=>onNav('transactions')}>
-          <ArrowUpCircle size={15}/> {t('dashboard.newTx')}
-        </button>
+        <div className="flex g8">
+          <button className="lang-toggle" onClick={()=>setDispCur(c=>c==='HTG'?'USD':'HTG')} title="HTG / USD">
+            {dispCur}
+          </button>
+          <button className="btn btn-primary" onClick={()=>onNav('transactions')}>
+            <ArrowUpCircle size={15}/> {t('dashboard.newTx')}
+          </button>
+        </div>
       </div>
 
       <div className="kpi-grid">
         <div className="kpi green">
           <div className="kpi-lbl"><Wallet size={11}/> {t('dashboard.netWorth')}</div>
-          <div className="kpi-val green">{fmtHTG(totalNet)}</div>
+          <div className="kpi-val green">{fmtC(totalNet)}</div>
           <div className="kpi-sub">{accounts.length} {accounts.length>1?t('dashboard.accounts'):t('dashboard.account')}</div>
           <div className="kpi-ico"><TrendingUp size={52}/></div>
         </div>
         <div className="kpi teal">
           <div className="kpi-lbl"><ArrowDownCircle size={11}/> {t('dashboard.incomeMonth')}</div>
-          <div className="kpi-val teal">{fmtHTG(income)}</div>
+          <div className="kpi-val teal">{fmtC(income)}</div>
           <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='income').length} {t('dashboard.transactions')}</div>
         </div>
         <div className="kpi red">
           <div className="kpi-lbl"><ArrowUpCircle size={11}/> {t('dashboard.expenseMonth')}</div>
-          <div className="kpi-val red">{fmtHTG(expense)}</div>
+          <div className="kpi-val red">{fmtC(expense)}</div>
           <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='expense').length} {t('dashboard.transactions')}</div>
         </div>
         <div className={`kpi ${netMonth>=0?'green':'red'}`}>
           <div className="kpi-lbl"><Scale size={11}/> {t('dashboard.netMonth')}</div>
-          <div className={`kpi-val ${netMonth>=0?'green':'red'}`}>{fmtHTG(netMonth)}</div>
+          <div className={`kpi-val ${netMonth>=0?'green':'red'}`}>{fmtC(netMonth)}</div>
           <div className="kpi-sub">{income>0?Math.round(expense/income*100):0}{t('dashboard.pctSpent')}</div>
         </div>
       </div>
@@ -106,7 +116,7 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
                   <linearGradient id="ge" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#FF5252" stopOpacity={.3}/><stop offset="95%" stopColor="#FF5252" stopOpacity={0}/></linearGradient>
                 </defs>
                 <XAxis dataKey="name" stroke="#3D6B50" fontSize={11} tickLine={false} axisLine={false}/>
-                <YAxis stroke="#3D6B50" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`${Math.round(v/1000)}k`}/>
+                <YAxis stroke="#3D6B50" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`${Math.round((dispCur==='USD'?v/rate:v)/1000)}k`}/>
                 <Tooltip content={<TT/>}/>
                 <Area type="monotone" dataKey="income"  name={t('dashboard.income')}  stroke="#00C853" strokeWidth={2} fill="url(#gi)"/>
                 <Area type="monotone" dataKey="expense" name={t('dashboard.expense')} stroke="#FF5252" strokeWidth={2} fill="url(#ge)"/>
@@ -123,13 +133,13 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart><Pie data={catData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={3} dataKey="value">
                       {catData.map((_,i)=><Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]}/>)}
-                    </Pie><Tooltip formatter={v=>fmtHTG(v)}/></PieChart>
+                    </Pie><Tooltip formatter={v=>fmtC(v)}/></PieChart>
                   </ResponsiveContainer>
                 </div>
                 {catData.map((c,i)=>(
                   <div key={c.name} className="fb" style={{padding:'4px 0',fontSize:12}}>
                     <div className="flex g8"><div style={{width:8,height:8,borderRadius:2,background:PIE_COLORS[i%PIE_COLORS.length],flexShrink:0,marginTop:4}}/><span className="muted">{c.name}</span></div>
-                    <span style={{fontWeight:600}}>{fmtHTG(c.value)}</span>
+                    <span style={{fontWeight:600}}>{fmtC(c.value)}</span>
                   </div>
                 ))}
               </>
@@ -160,7 +170,7 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
                     </div>
                   </div>
                   <div className={isIn?'tx-in':'tx-out'} style={{fontFamily:'var(--fd)',fontSize:13}}>
-                    {isIn?'+':'-'}{fmtHTG(toHTG(Number(tx.amount),tx.currency,rate))}
+                    {isIn?'+':'-'}{fmtC(toHTG(Number(tx.amount),tx.currency,rate))}
                   </div>
                 </div>;
               })

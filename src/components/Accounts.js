@@ -103,7 +103,9 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
   const { t, tId } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing,   setEditing]   = useState(null);
+  const [dispCur,   setDispCur]   = useState('HTG');
   const rate = Number(settings?.usdToHtg)||130;
+  const fmtC = (v) => dispCur==='USD' ? fmtUSD(v/rate) : fmtHTG(v);
 
   const enriched = useMemo(()=>accounts.map(a=>{
     const balance = computeBalance(a, transactions);
@@ -143,20 +145,25 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
           <div className="pt">{t('accounts.title')}</div>
           <div className="ps">{t('accounts.subtitle')}</div>
         </div>
-        <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}>
-          <Plus size={15}/> {t('accounts.add')}
-        </button>
+        <div className="flex g8">
+          <button className="lang-toggle" onClick={()=>setDispCur(c=>c==='HTG'?'USD':'HTG')} title="HTG / USD">
+            {dispCur}
+          </button>
+          <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}>
+            <Plus size={15}/> {t('accounts.add')}
+          </button>
+        </div>
       </div>
 
       <div className="kpi-grid mb24">
         <div className="kpi green">
           <div className="kpi-lbl"><TrendingUp size={12}/> {t('accounts.totalAssets')}</div>
-          <div className="kpi-val green">{fmtHTG(totalHTG)}</div>
+          <div className="kpi-val green">{fmtC(totalHTG)}</div>
           <div className="kpi-ico"><Wallet size={48}/></div>
         </div>
         <div className="kpi red">
           <div className="kpi-lbl"><CreditCard size={12}/> {t('accounts.creditUsed')}</div>
-          <div className="kpi-val red">{fmtHTG(totalCreditUsed)}</div>
+          <div className="kpi-val red">{fmtC(totalCreditUsed)}</div>
         </div>
         <div className="kpi blue">
           <div className="kpi-lbl">{t('accounts.count')}</div>
