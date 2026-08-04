@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { fmt, toHTG, fmtHTG } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -222,11 +222,23 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
 }
 
 export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelete }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const rate = Number(settings?.usdToHtg) || 130;
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [newKind, setNewKind] = useState('receivable');
+  const [openHistory, setOpenHistory] = useState({});
+
+  const toggleHistory = (id) => setOpenHistory(h => ({ ...h, [id]: !h[id] }));
+
+  // Marque la mensualite du jour comme payee : archive le versement dans
+  // paymentHistory et reduit le solde restant du pret.
+  const markPaid = (item) => {
+    const amt = Number(item.monthlyPayment) || 0;
+    const newBalance = Math.max(0, (Number(item.remainingBalance) || 0) - amt);
+    const history = [...(item.paymentHistory || []), { date: today(), amount: amt }];
+    onUpdate(item.id, { remainingBalance: newBalance, paymentHistory: history });
+  };
 
   const enriched = useMemo(() => loans.map(l => {
     let dueDate = l.dueDate || null;
@@ -321,6 +333,11 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                           {fmt(Number(l.monthlyPayment), l.currency)}{t('loansCredits.perMonth')}
                         </div>
                       )}
+                      {Number(l.remainingBalance) <= 0 && (l.paymentHistory || []).length > 0 && (
+                        <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--g-bg)', color: 'var(--g1)', borderRadius: 6, fontSize: 11, fontWeight: 700, display: 'inline-block' }}>
+                          {t('loansCredits.paidOff')}
+                        </div>
+                      )}
                     </>
                   ) : kind === 'bond' ? (
                     <>
@@ -342,7 +359,18 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                   )}
                   {l.notes && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>{l.notes}</div>}
 
-                  <div className="flex g8 mt12" onClick={e => e.stopPropagation()}>
+                  <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+                    {kind === 'loan' && Number(l.remainingBalance) > 0 && (
+                      <button className="btn btn-primary btn-sm" onClick={() => markPaid(l)}>
+                        <CheckCircle2 size={12} /> {t('loansCredits.markPaid')}
+                      </button>
+                    )}
+                    {kind === 'loan' && (l.paymentHistory || []).length > 0 && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => toggleHistory(l.id)}>
+                        <History size={12} /> {t('loansCredits.history')} ({l.paymentHistory.length})
+                        {openHistory[l.id] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      </button>
+                    )}
                     <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(l); setShowModal(true); }}>
                       <Pencil size={12} /> {t('loansCredits.edit_')}
                     </button>
@@ -350,6 +378,17 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                       <Trash2 size={12} />
                     </button>
                   </div>
+
+                  {kind === 'loan' && openHistory[l.id] && (l.paymentHistory || []).length > 0 && (
+                    <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8, maxHeight: 140, overflowY: 'auto' }}>
+                      {[...l.paymentHistory].reverse().map((p, i) => (
+                        <div key={i} className="fb" style={{ fontSize: 11, color: 'var(--text2)', padding: '3px 0' }}>
+                          <span>{t('loansCredits.paidOn')} {new Date(p.date).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--g1)' }}>{fmt(p.amount, l.currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -140,6 +140,7 @@ export const translations = {
       m_notes: 'Notes', m_notesPh: 'Optionnel', m_cancel: 'Annuler', m_save: 'Sauvegarder', m_create: 'Créer',
       dueOn: 'Échéance', overdue: 'En retard', dueSoon: 'Échéance proche', daysLeft: 'jours restants',
       perMonth: '/mois', perYear: '/an', remaining: 'restant', of_: 'sur', alertPrefix: 'Rappel',
+      markPaid: 'Marquer payé', history: 'Historique', paidOn: 'Payé le', paidOff: '✓ Prêt soldé',
     },
     settings: {
       title: 'Paramètres', subtitle: 'Configuration de FinTrack',
@@ -303,6 +304,7 @@ export const translations = {
       m_notes: 'Notes', m_notesPh: 'Optional', m_cancel: 'Cancel', m_save: 'Save', m_create: 'Create',
       dueOn: 'Due', overdue: 'Overdue', dueSoon: 'Due soon', daysLeft: 'days left',
       perMonth: '/month', perYear: '/year', remaining: 'remaining', of_: 'of', alertPrefix: 'Reminder',
+      markPaid: 'Mark as paid', history: 'History', paidOn: 'Paid on', paidOff: '✓ Loan paid off',
     },
     settings: {
       title: 'Settings', subtitle: 'FinTrack configuration',
