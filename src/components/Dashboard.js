@@ -30,6 +30,21 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
 
   const totalNet = accountsNet + loansNet;
 
+  // Sous-totaux natifs (non convertis) par devise pour le net worth :
+  // comptes + creances/obligations (+) - dettes/prets restants (-), chacun
+  // dans sa propre devise.
+  const nativeNetWorth = useMemo(()=>{
+    const res = { HTG: 0, USD: 0 };
+    balances.forEach(a=>{ res[a.currency==='USD'?'USD':'HTG'] += Number(a.balance)||0; });
+    loans.forEach(l=>{
+      const cur = l.currency==='USD'?'USD':'HTG';
+      if (l.kind==='receivable' || l.kind==='bond') res[cur] += Number(l.amount)||0;
+      if (l.kind==='payable') res[cur] -= Number(l.amount)||0;
+      if (l.kind==='loan') res[cur] -= Number(l.remainingBalance)||0;
+    });
+    return res;
+  },[balances,loans]);
+
   const thisMonth = useMemo(()=>transactions.filter(t=>{
     const d=new Date(t.date);
     return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&t.status==='confirmed';
@@ -38,6 +53,14 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
   const income  = useMemo(()=>thisMonth.filter(t=>t.txType==='income').reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),[thisMonth,rate]);
   const expense = useMemo(()=>thisMonth.filter(t=>t.txType==='expense').reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),[thisMonth,rate]);
   const netMonth = income - expense;
+
+  const nativeSums = (txs) => ({
+    HTG: txs.filter(t=>t.currency==='HTG').reduce((s,t)=>s+Number(t.amount),0),
+    USD: txs.filter(t=>t.currency==='USD').reduce((s,t)=>s+Number(t.amount),0),
+  });
+  const nativeIncome  = useMemo(()=>nativeSums(thisMonth.filter(t=>t.txType==='income')),[thisMonth]);
+  const nativeExpense = useMemo(()=>nativeSums(thisMonth.filter(t=>t.txType==='expense')),[thisMonth]);
+  const nativeNetMonth = { HTG: nativeIncome.HTG-nativeExpense.HTG, USD: nativeIncome.USD-nativeExpense.USD };
 
   const monthlyData = useMemo(()=>Array.from({length:6},(_,i)=>{
     const d=new Date(now.getFullYear(),now.getMonth()-5+i,1);
@@ -85,22 +108,26 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
         <div className="kpi green">
           <div className="kpi-lbl"><Wallet size={11}/> {t('dashboard.netWorth')}</div>
           <div className="kpi-val green">{fmtC(totalNet)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeNetWorth.HTG)} · {fmtUSD(nativeNetWorth.USD)}</div>
           <div className="kpi-sub">{accounts.length} {accounts.length>1?t('dashboard.accounts'):t('dashboard.account')}</div>
           <div className="kpi-ico"><TrendingUp size={52}/></div>
         </div>
         <div className="kpi teal">
           <div className="kpi-lbl"><ArrowDownCircle size={11}/> {t('dashboard.incomeMonth')}</div>
           <div className="kpi-val teal">{fmtC(income)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeIncome.HTG)} · {fmtUSD(nativeIncome.USD)}</div>
           <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='income').length} {t('dashboard.transactions')}</div>
         </div>
         <div className="kpi red">
           <div className="kpi-lbl"><ArrowUpCircle size={11}/> {t('dashboard.expenseMonth')}</div>
           <div className="kpi-val red">{fmtC(expense)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeExpense.HTG)} · {fmtUSD(nativeExpense.USD)}</div>
           <div className="kpi-sub">{thisMonth.filter(t=>t.txType==='expense').length} {t('dashboard.transactions')}</div>
         </div>
         <div className={`kpi ${netMonth>=0?'green':'red'}`}>
           <div className="kpi-lbl"><Scale size={11}/> {t('dashboard.netMonth')}</div>
           <div className={`kpi-val ${netMonth>=0?'green':'red'}`}>{fmtC(netMonth)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeNetMonth.HTG)} · {fmtUSD(nativeNetMonth.USD)}</div>
           <div className="kpi-sub">{income>0?Math.round(expense/income*100):0}{t('dashboard.pctSpent')}</div>
         </div>
       </div>

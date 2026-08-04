@@ -123,6 +123,22 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
   const totalHTG = useMemo(()=>enriched.filter(a=>a.type!=='credit').reduce((s,a)=>s+toHTG(a.balance,a.currency,rate),0),[enriched,rate]);
   const totalCreditUsed = useMemo(()=>enriched.filter(a=>a.isCredit).reduce((s,a)=>s+toHTG(a.used,a.currency,rate),0),[enriched,rate]);
 
+  // Sous-totaux natifs (non convertis) par devise, pour chaque KPI.
+  const nativeAssets = useMemo(()=>{
+    const list = enriched.filter(a=>a.type!=='credit');
+    return {
+      HTG: list.filter(a=>a.currency==='HTG').reduce((s,a)=>s+a.balance,0),
+      USD: list.filter(a=>a.currency==='USD').reduce((s,a)=>s+a.balance,0),
+    };
+  },[enriched]);
+  const nativeCreditUsed = useMemo(()=>{
+    const list = enriched.filter(a=>a.isCredit);
+    return {
+      HTG: list.filter(a=>a.currency==='HTG').reduce((s,a)=>s+a.used,0),
+      USD: list.filter(a=>a.currency==='USD').reduce((s,a)=>s+a.used,0),
+    };
+  },[enriched]);
+
   const handleSave = (data)=>{ editing?onUpdate(editing.id,data):onAdd(data); setShowModal(false);setEditing(null); };
   const progCls = pct => pct>=90?'danger':pct>=70?'warn':'ok';
 
@@ -159,11 +175,13 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
         <div className="kpi green">
           <div className="kpi-lbl"><TrendingUp size={12}/> {t('accounts.totalAssets')}</div>
           <div className="kpi-val green">{fmtC(totalHTG)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeAssets.HTG)} · {fmtUSD(nativeAssets.USD)}</div>
           <div className="kpi-ico"><Wallet size={48}/></div>
         </div>
         <div className="kpi red">
           <div className="kpi-lbl"><CreditCard size={12}/> {t('accounts.creditUsed')}</div>
           <div className="kpi-val red">{fmtC(totalCreditUsed)}</div>
+          <div className="kpi-sub">{fmtHTG(nativeCreditUsed.HTG)} · {fmtUSD(nativeCreditUsed.USD)}</div>
         </div>
         <div className="kpi blue">
           <div className="kpi-lbl">{t('accounts.count')}</div>
