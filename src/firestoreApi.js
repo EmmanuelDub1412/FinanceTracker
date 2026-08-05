@@ -12,7 +12,10 @@ import {
   signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
   verifyPasswordResetCode, confirmPasswordReset,
 } from 'firebase/auth';
-import { auth, googleProvider, db as firestore } from './firebase';
+import {
+  ref as storageRef, uploadBytes, getDownloadURL, deleteObject,
+} from 'firebase/storage';
+import { auth, googleProvider, db as firestore, storage } from './firebase';
 
 // ── ID generation (identique a l'ancienne version) ─────────────────────────
 export const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -117,6 +120,31 @@ class FirestoreDB {
 }
 
 export const db = new FirestoreDB();
+
+// ── Pieces jointes (recu/facture) sur Firebase Storage ──────────────────────
+// Rangees sous users/{uid}/receipts/{nom-unique} pour rester isolees par
+// utilisateur, comme les collections Firestore.
+export const uploadReceipt = async (file) => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Utilisateur non connecte');
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `users/${uid}/receipts/${Date.now()}-${safeName}`;
+  const ref = storageRef(storage, path);
+  await uploadBytes(ref, file, { contentType: file.type });
+  const url = await getDownloadURL(ref);
+  return { url, path, name: file.name, type: file.type };
+};
+
+export const deleteReceipt = async (path) => {
+  if (!path) return;
+  try {
+    await deleteObject(storageRef(storage, path));
+  } catch (e) {
+    // Fichier deja supprime ou permission manquante : on ignore, ce n'est
+    // pas bloquant pour l'utilisateur.
+    console.warn('Erreur suppression piece jointe:', e.message || e);
+  }
+};
 
 // ── Auth Google via Firebase (remplace gapi/tokenClient) ───────────────────
 export const signInWithGoogle = async () => {

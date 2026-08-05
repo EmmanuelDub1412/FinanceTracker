@@ -1,21 +1,57 @@
-import React, { useState, useMemo } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle, Paperclip, Camera, FileText, X, Loader2 } from 'lucide-react';
 import { fmtHTG, fmt, toHTG, today, CATEGORIES, getCat } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
+import { uploadReceipt, deleteReceipt } from '../firestoreApi';
 
 const TYPE_ICON = { income: ArrowDownCircle, expense: ArrowUpCircle, transfer: ArrowLeftRight, savings: PiggyBank };
 const TYPE_CLS  = { income: 'on-income', expense: 'on-expense', transfer: 'on-transfer', savings: 'on-savings' };
 const STATUS_CLS = { confirmed: 'bg-green', pending: 'bg-amber', cancelled: 'bg-red' };
 const STATUS_ICON = { confirmed: CheckCircle, pending: Clock, cancelled: XCircle };
 
-function TxModal({ tx, accounts, onSave, onClose }) {
+function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onSave, onClose }) {
   const { t, tId } = useLanguage();
   const [form, setForm] = useState(tx || {
     date:today(), description:'', category:'DEP-ALI', txType:'expense',
     debitAccount:'', creditAccount:'', amount:'', currency:'HTG',
     status:'confirmed', beneficiary:'', notes:'',
+    receiptUrl:'', receiptPath:'', receiptName:'', receiptType:'',
   });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // Selecteur de beneficiaire : liste deroulante alimentee par la collection
+  // "beneficiaires", avec option pour en ajouter un nouveau a la volee.
+  const [addingBen, setAddingBen] = useState(false);
+  const [newBenName, setNewBenName] = useState('');
+  const confirmNewBeneficiary = () => {
+    const name = newBenName.trim();
+    if (!name) { setAddingBen(false); return; }
+    const exists = beneficiaries.find(b => b.name.toLowerCase() === name.toLowerCase());
+    if (!exists) onAddBeneficiary?.({ name });
+    set('beneficiary', name);
+    setNewBenName('');
+    setAddingBen(false);
+  };
+
+  // Piece jointe : soit un fichier deja upload (receiptUrl existant sur la
+  // transaction), soit un nouveau fichier choisi localement en attente
+  // d'upload au moment du Save (pour ne pas uploader si l'utilisateur annule).
+  const [newFile, setNewFile] = useState(null);
+  const [newPreview, setNewPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const cameraInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const pickFile = (file) => {
+    if (!file) return;
+    setNewFile(file);
+    setNewPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
+  };
+  const removeAttachment = () => {
+    setNewFile(null);
+    setNewPreview(null);
+    set('receiptUrl',''); set('receiptPath',''); set('receiptName',''); set('receiptType','');
+  };
 
   const filteredCats = CATEGORIES.filter(c => {
     if(form.txType==='income')   return c.type==='income';
@@ -23,6 +59,29 @@ function TxModal({ tx, accounts, onSave, onClose }) {
     if(form.txType==='savings')  return c.type==='savings';
     return c.type==='expense';
   });
+
+  const handleSave = async () => {
+    if (!form.description || !form.amount) return;
+    let payload = { ...form, amount: Number(form.amount) };
+    if (newFile) {
+      setUploading(true);
+      try {
+        const oldPath = tx?.receiptPath;
+        const uploaded = await uploadReceipt(newFile);
+        payload = { ...payload, receiptUrl: uploaded.url, receiptPath: uploaded.path, receiptName: uploaded.name, receiptType: uploaded.type };
+        if (oldPath && oldPath !== uploaded.path) deleteReceipt(oldPath);
+      } catch (e) {
+        setUploading(false);
+        window.alert(t('transactions.uploadError') + ' ' + (e.message || e));
+        return;
+      }
+      setUploading(false);
+    } else if (tx && tx.receiptPath && !form.receiptPath) {
+      // L'utilisateur a retire la piece jointe existante.
+      deleteReceipt(tx.receiptPath);
+    }
+    onSave(payload);
+  };
 
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -121,10 +180,50 @@ function TxModal({ tx, accounts, onSave, onClose }) {
             </div>
           </div>
 
+          <div className="fg">
+            <label className="fl">{t('transactions.receipt')}</label>
+
+            {!newFile && !form.receiptUrl && (
+              <div className="flex g8">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={()=>cameraInputRef.current?.click()}>
+                  <Camera size={13}/> {t('transactions.takePhoto')}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={()=>fileInputRef.current?.click()}>
+                  <Paperclip size={13}/> {t('transactions.chooseFile')}
+                </button>
+              </div>
+            )}
+
+            {/* Input dedie camera : capture="environment" ouvre directement l'appareil photo sur mobile */}
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{display:'none'}}
+              onChange={e=>{pickFile(e.target.files?.[0]); e.target.value='';}}/>
+            {/* Input dedie fichier : pas de capture, laisse choisir dans la galerie/gestionnaire, PDF inclus */}
+            <input ref={fileInputRef} type="file" accept="image/*,application/pdf" style={{display:'none'}}
+              onChange={e=>{pickFile(e.target.files?.[0]); e.target.value='';}}/>
+
+            {(newFile || form.receiptUrl) && (
+              <div className="flex g8" style={{alignItems:'center',marginTop:newFile||form.receiptUrl?8:0,padding:'8px 10px',background:'var(--bg3)',borderRadius:8,border:'1px solid var(--border)'}}>
+                {newPreview ? (
+                  <img src={newPreview} alt="" style={{width:36,height:36,objectFit:'cover',borderRadius:6}}/>
+                ) : (
+                  <div style={{width:36,height:36,borderRadius:6,background:'var(--g-bg)',color:'var(--g1)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <FileText size={16}/>
+                  </div>
+                )}
+                <div style={{flex:1,minWidth:0,fontSize:12,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                  {newFile ? newFile.name : (
+                    <a href={form.receiptUrl} target="_blank" rel="noreferrer" style={{color:'var(--g1)',fontWeight:600}}>{form.receiptName || t('transactions.viewReceipt')}</a>
+                  )}
+                </div>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={removeAttachment}><X size={12}/></button>
+              </div>
+            )}
+          </div>
+
           <div className="flex g8" style={{justifyContent:'flex-end',marginTop:4}}>
-            <button className="btn btn-ghost" onClick={onClose}>{t('transactions.cancel')}</button>
-            <button className="btn btn-primary" onClick={()=>{if(form.description&&form.amount)onSave({...form,amount:Number(form.amount)});}}>
-              {tx?t('transactions.save'):t('transactions.add_')}
+            <button className="btn btn-ghost" onClick={onClose} disabled={uploading}>{t('transactions.cancel')}</button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={uploading}>
+              {uploading ? <><Loader2 size={14} className="spin"/> {t('transactions.uploading')}</> : (tx?t('transactions.save'):t('transactions.add_'))}
             </button>
           </div>
         </div>
@@ -258,7 +357,15 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
                       <tr key={tx.id}>
                         <td style={{color:'var(--text2)',fontSize:12,whiteSpace:'nowrap'}}>{fmtDate(tx.date)}</td>
                         <td>
-                          <div style={{fontWeight:600,fontSize:13}}>{tx.description}</div>
+                          <div className="flex g8" style={{alignItems:'center'}}>
+                            <span style={{fontWeight:600,fontSize:13}}>{tx.description}</span>
+                            {tx.receiptUrl && (
+                              <a href={tx.receiptUrl} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()}
+                                title={tx.receiptName||t('transactions.viewReceipt')} style={{color:'var(--g1)',display:'inline-flex'}}>
+                                <Paperclip size={12}/>
+                              </a>
+                            )}
+                          </div>
                           {tx.beneficiary&&<div style={{fontSize:11,color:'var(--text3)'}}>{tx.beneficiary}</div>}
                         </td>
                         <td><span style={{fontSize:12,color:'var(--text2)',fontWeight:500}}>{catLabel}</span></td>
