@@ -17,6 +17,24 @@ export const computeBalance = (account, transactions) => {
     });
   return balance;
 };
+// Historique complet d'un compte avec solde progressif (comme un releve
+// bancaire) : toutes les transactions (tous statuts) qui touchent ce
+// compte, triees du plus recent au plus ancien, avec le solde apres
+// chaque mouvement confirme.
+export const accountHistory = (account, transactions) => {
+  const touching = transactions.filter(t=>t.debitAccount===account.id||t.creditAccount===account.id);
+  const chrono = [...touching].sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||'').localeCompare(b.createdAt||''));
+  let balance = Number(account.initialBalance)||0;
+  const withRunning = chrono.map(t=>{
+    const amt = Number(t.amount)||0;
+    const direction = t.creditAccount===account.id ? 'in' : 'out';
+    if(t.status==='confirmed'){
+      if(direction==='in') balance+=amt; else balance-=amt;
+    }
+    return {...t,direction,runningBalance:balance};
+  });
+  return withRunning.reverse();
+};
 export const amortize = (principal, annualRate, months) => {
   const r = annualRate/100/12;
   if(!principal||!months) return {monthly:0,totalPayment:0,totalInterest:0,schedule:[]};

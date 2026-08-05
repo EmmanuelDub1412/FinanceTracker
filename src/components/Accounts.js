@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Building2, CreditCard, Banknote, PiggyBank, Smartphone, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
-import { fmtHTG, fmtUSD, fmt, toHTG, computeBalance, ACCOUNT_TYPES } from '../utils/finance';
+import { Building2, CreditCard, Banknote, PiggyBank, Smartphone, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet, History, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { fmtHTG, fmtUSD, fmt, toHTG, computeBalance, accountHistory, getCat, ACCOUNT_TYPES } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const TYPE_ICONS = {
@@ -111,11 +111,72 @@ function AccountModal({ account, onSave, onClose }) {
   );
 }
 
+function AccountHistoryModal({ account, transactions, onClose }) {
+  const { t, tId, lang } = useLanguage();
+  const rows = useMemo(()=>accountHistory(account, transactions), [account, transactions]);
+  const fmtDate = d=>{if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{maxWidth:640}}>
+        <div className="modal-hd">
+          <div className="modal-ttl"><History size={18} style={{color:'var(--g1)'}}/> {t('accounts.history')} — {account.name}</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        {rows.length===0 ? (
+          <div className="empty" style={{padding:'24px 0'}}>
+            <div className="empty-ico"><History size={40}/></div>
+            <div className="empty-txt">{t('accounts.historyEmpty')}</div>
+          </div>
+        ) : (
+          <div className="tw" style={{maxHeight:440,overflowY:'auto'}}>
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('transactions.col_date')}</th><th>{t('transactions.col_desc')}</th><th>{t('transactions.col_cat')}</th>
+                  <th style={{textAlign:'right'}}>{t('transactions.col_amount')}</th>
+                  <th style={{textAlign:'right'}}>{t('accounts.runningBalance')}</th>
+                  <th>{t('transactions.col_status')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(tx=>{
+                  const catLabel = tId('categories', tx.category, getCat(tx.category).label);
+                  const isIn = tx.direction==='in';
+                  return (
+                    <tr key={tx.id}>
+                      <td style={{color:'var(--text2)',fontSize:12,whiteSpace:'nowrap'}}>{fmtDate(tx.date)}</td>
+                      <td>
+                        <div className="flex g8" style={{alignItems:'center'}}>
+                          {isIn ? <ArrowDownCircle size={13} style={{color:'var(--g1)',flexShrink:0}}/> : <ArrowUpCircle size={13} style={{color:'var(--red)',flexShrink:0}}/>}
+                          <span style={{fontWeight:600,fontSize:13}}>{tx.description}</span>
+                        </div>
+                      </td>
+                      <td><span style={{fontSize:12,color:'var(--text2)'}}>{catLabel}</span></td>
+                      <td className={`tr ${isIn?'tx-in':'tx-out'}`} style={{fontWeight:700,fontSize:13}}>
+                        {isIn?'+':'-'}{fmt(Number(tx.amount),tx.currency)}
+                      </td>
+                      <td className="tr" style={{fontWeight:600,fontSize:13,opacity:tx.status==='confirmed'?1:.5}}>{fmt(tx.runningBalance,account.currency)}</td>
+                      <td><span className={`badge ${tx.status==='confirmed'?'bg-green':tx.status==='pending'?'bg-amber':'bg-red'}`}>{t(`status.${tx.status||'confirmed'}`)}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Accounts({ accounts, transactions, settings, onAdd, onUpdate, onDelete }) {
   const { t, tId } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing,   setEditing]   = useState(null);
   const [dispCur,   setDispCur]   = useState('HTG');
+  const [viewingHistory, setViewingHistory] = useState(null);
   const rate = Number(settings?.usdToHtg)||130;
   const fmtC = (v) => dispCur==='USD' ? fmtUSD(v/rate) : fmtHTG(v);
 
@@ -258,6 +319,9 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
                     )}
                     {a.notes&&<div style={{fontSize:11,color:'var(--text3)',marginTop:8}}>{a.notes}</div>}
                     <div className="flex g8 mt12" onClick={e=>e.stopPropagation()}>
+                      <button className="btn btn-ghost btn-sm" onClick={()=>setViewingHistory(a)}>
+                        <History size={12}/> {t('accounts.history')}
+                      </button>
                       <button className="btn btn-ghost btn-sm" onClick={()=>{setEditing(a);setShowModal(true);}}>
                         <Pencil size={12}/> {t('accounts.edit_')}
                       </button>
@@ -283,6 +347,7 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
       )}
 
       {showModal&&<AccountModal account={editing} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
+      {viewingHistory&&<AccountHistoryModal account={viewingHistory} transactions={transactions} onClose={()=>setViewingHistory(null)}/>}
     </div>
   );
 }
