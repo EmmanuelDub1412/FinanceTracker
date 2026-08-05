@@ -154,7 +154,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
     const rowsHtml = rows.map(tx=>{
       if(tx.isOpening){
         return `<tr style="background:#F0F2F5;font-weight:700">
-          <td>${fmtDate(tx.date)}</td><td>${tx.description}</td><td></td><td></td>
+          <td>${fmtDate(tx.date)}</td><td>${tx.description}</td><td></td><td></td><td></td>
           <td style="text-align:right">${fmt(tx.runningBalance,account.currency)}</td><td></td>
         </tr>`;
       }
@@ -163,7 +163,8 @@ function AccountHistoryModal({ account, transactions, onClose }) {
         <td>${fmtDate(tx.date)}</td>
         <td>${tx.description||''}</td>
         <td>${catLabelOf(tx)}</td>
-        <td style="text-align:right;color:${isIn?'#00A86B':'#E53E3E'}">${isIn?'+':'-'}${fmt(Number(tx.amount),tx.currency)}</td>
+        <td style="text-align:right;color:#E53E3E">${isIn?'':fmt(Number(tx.amount),tx.currency)}</td>
+        <td style="text-align:right;color:#00A86B">${isIn?fmt(Number(tx.amount),tx.currency):''}</td>
         <td style="text-align:right;font-weight:600">${fmt(tx.runningBalance,account.currency)}</td>
         <td>${statusLabelOf(tx)}</td>
       </tr>`;
@@ -183,9 +184,10 @@ function AccountHistoryModal({ account, transactions, onClose }) {
       <div class="sub">${period}</div>
       <table><thead><tr>
         <th>${t('transactions.col_date')}</th><th>${t('transactions.col_desc')}</th><th>${t('transactions.col_cat')}</th>
-        <th style="text-align:right">${t('transactions.col_amount')}</th><th style="text-align:right">${t('accounts.runningBalance')}</th>
+        <th style="text-align:right">${t('accounts.colDebit')}</th><th style="text-align:right">${t('accounts.colCredit')}</th>
+        <th style="text-align:right">${t('accounts.runningBalance')}</th>
         <th>${t('transactions.col_status')}</th>
-      </tr></thead><tbody>${rowsHtml || `<tr><td colspan="6" style="text-align:center;color:#8A97A8;padding:20px">${t('accounts.historyEmpty')}</td></tr>`}</tbody></table>
+      </tr></thead><tbody>${rowsHtml || `<tr><td colspan="7" style="text-align:center;color:#8A97A8;padding:20px">${t('accounts.historyEmpty')}</td></tr>`}</tbody></table>
       </body></html>`);
     win.document.close();
     win.focus();
@@ -194,7 +196,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
 
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal" style={{maxWidth:680}}>
+      <div className="modal" style={{maxWidth:760}}>
         <div className="modal-hd">
           <div className="modal-ttl"><History size={18} style={{color:'var(--g1)'}}/> {t('accounts.history')}: {account.name}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
@@ -228,7 +230,8 @@ function AccountHistoryModal({ account, transactions, onClose }) {
               <thead>
                 <tr>
                   <th>{t('transactions.col_date')}</th><th>{t('transactions.col_desc')}</th><th>{t('transactions.col_cat')}</th>
-                  <th style={{textAlign:'right'}}>{t('transactions.col_amount')}</th>
+                  <th style={{textAlign:'right'}}>{t('accounts.colDebit')}</th>
+                  <th style={{textAlign:'right'}}>{t('accounts.colCredit')}</th>
                   <th style={{textAlign:'right'}}>{t('accounts.runningBalance')}</th>
                   <th>{t('transactions.col_status')}</th>
                 </tr>
@@ -240,7 +243,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
                       <tr key={tx.id} style={{background:'var(--bg3)'}}>
                         <td style={{color:'var(--text2)',fontSize:12,whiteSpace:'nowrap',fontWeight:700}}>{tx.date?fmtDate(tx.date):''}</td>
                         <td style={{fontWeight:700,fontSize:13}}>{tx.description}</td>
-                        <td></td><td></td>
+                        <td></td><td></td><td></td>
                         <td className="tr" style={{fontWeight:700,fontSize:13}}>{fmt(tx.runningBalance,account.currency)}</td>
                         <td></td>
                       </tr>
@@ -258,9 +261,8 @@ function AccountHistoryModal({ account, transactions, onClose }) {
                         </div>
                       </td>
                       <td><span style={{fontSize:12,color:'var(--text2)'}}>{catLabel}</span></td>
-                      <td className={`tr ${isIn?'tx-in':'tx-out'}`} style={{fontWeight:700,fontSize:13}}>
-                        {isIn?'+':'-'}{fmt(Number(tx.amount),tx.currency)}
-                      </td>
+                      <td className="tr tx-out" style={{fontWeight:700,fontSize:13}}>{!isIn && fmt(Number(tx.amount),tx.currency)}</td>
+                      <td className="tr tx-in" style={{fontWeight:700,fontSize:13}}>{isIn && fmt(Number(tx.amount),tx.currency)}</td>
                       <td className="tr" style={{fontWeight:600,fontSize:13,opacity:tx.status==='confirmed'?1:.5}}>{fmt(tx.runningBalance,account.currency)}</td>
                       <td><span className={`badge ${tx.status==='confirmed'?'bg-green':tx.status==='pending'?'bg-amber':'bg-red'}`}>{statusLabelOf(tx)}</span></td>
                     </tr>
