@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Building2, CreditCard, Banknote, PiggyBank, Smartphone, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet, History, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Building2, CreditCard, Banknote, PiggyBank, Smartphone, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet, History, ArrowDownCircle, ArrowUpCircle, FileDown } from 'lucide-react';
 import { fmtHTG, fmtUSD, fmt, toHTG, computeBalance, accountHistory, getCat, ACCOUNT_TYPES } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -113,15 +113,85 @@ function AccountModal({ account, onSave, onClose }) {
 
 function AccountHistoryModal({ account, transactions, onClose }) {
   const { t, tId, lang } = useLanguage();
-  const rows = useMemo(()=>accountHistory(account, transactions), [account, transactions]);
+  const allRows = useMemo(()=>accountHistory(account, transactions), [account, transactions]);
   const fmtDate = d=>{if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
+
+  const [fromDate, setFromDate] = useState('');
+  const [toDate,   setToDate]   = useState('');
+
+  const rows = useMemo(()=>allRows.filter(tx=>{
+    if(fromDate && tx.date<fromDate) return false;
+    if(toDate && tx.date>toDate) return false;
+    return true;
+  }),[allRows,fromDate,toDate]);
+
+  const catLabelOf = tx => tId('categories', tx.category, getCat(tx.category).label);
+  const statusLabelOf = tx => t(`status.${tx.status||'confirmed'}`);
+
+  const exportPDF = () => {
+    const win = window.open('', '_blank');
+    if(!win) { window.alert(t('accounts.popupBlocked')); return; }
+    const period = fromDate || toDate
+      ? `${t('accounts.periodFrom')} ${fromDate?fmtDate(fromDate):t('accounts.periodStart')} ${t('accounts.periodTo')} ${toDate?fmtDate(toDate):t('accounts.periodToday')}`
+      : t('accounts.periodAll');
+    const rowsHtml = rows.map(tx=>{
+      const isIn = tx.direction==='in';
+      return `<tr>
+        <td>${fmtDate(tx.date)}</td>
+        <td>${tx.description||''}</td>
+        <td>${catLabelOf(tx)}</td>
+        <td style="text-align:right;color:${isIn?'#00A86B':'#E53E3E'}">${isIn?'+':'-'}${fmt(Number(tx.amount),tx.currency)}</td>
+        <td style="text-align:right;font-weight:600">${fmt(tx.runningBalance,account.currency)}</td>
+        <td>${statusLabelOf(tx)}</td>
+      </tr>`;
+    }).join('');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${t('accounts.history')} - ${account.name}</title>
+      <style>
+        body{font-family:Arial,Helvetica,sans-serif;color:#0F1923;padding:24px;}
+        h1{font-size:18px;margin:0 0 2px 0;}
+        .sub{font-size:12px;color:#4A5568;margin-bottom:2px;}
+        table{width:100%;border-collapse:collapse;margin-top:16px;font-size:11px;}
+        th,td{padding:6px 8px;border-bottom:1px solid #E2E6EC;text-align:left;}
+        th{background:#F0F2F5;font-size:10px;text-transform:uppercase;letter-spacing:.4px;}
+        @media print{ body{padding:0;} }
+      </style></head><body>
+      <h1>${t('accounts.history')} - ${account.name}</h1>
+      <div class="sub">${account.currency} ${account.accountNumber?(' - '+account.accountNumber):''}${account.cardLast4?(' - •••• '+account.cardLast4):''}</div>
+      <div class="sub">${period}</div>
+      <table><thead><tr>
+        <th>${t('transactions.col_date')}</th><th>${t('transactions.col_desc')}</th><th>${t('transactions.col_cat')}</th>
+        <th style="text-align:right">${t('transactions.col_amount')}</th><th style="text-align:right">${t('accounts.runningBalance')}</th>
+        <th>${t('transactions.col_status')}</th>
+      </tr></thead><tbody>${rowsHtml || `<tr><td colspan="6" style="text-align:center;color:#8A97A8;padding:20px">${t('accounts.historyEmpty')}</td></tr>`}</tbody></table>
+      </body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(()=>win.print(), 300);
+  };
 
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal" style={{maxWidth:640}}>
+      <div className="modal" style={{maxWidth:680}}>
         <div className="modal-hd">
           <div className="modal-ttl"><History size={18} style={{color:'var(--g1)'}}/> {t('accounts.history')}: {account.name}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="flex g8" style={{alignItems:'flex-end',flexWrap:'wrap',marginBottom:14}}>
+          <div className="fg" style={{marginBottom:0}}>
+            <label className="fl">{t('accounts.periodStart')}</label>
+            <input className="fi" type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{width:150}}/>
+          </div>
+          <div className="fg" style={{marginBottom:0}}>
+            <label className="fl">{t('accounts.periodEnd')}</label>
+            <input className="fi" type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{width:150}}/>
+          </div>
+          {(fromDate||toDate) && (
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setFromDate('');setToDate('');}}>{t('transactions.reset')}</button>
+          )}
+          <button className="btn btn-primary btn-sm" style={{marginLeft:'auto'}} onClick={exportPDF}>
+            <FileDown size={13}/> {t('accounts.exportPdf')}
+          </button>
         </div>
 
         {rows.length===0 ? (
@@ -142,7 +212,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
               </thead>
               <tbody>
                 {rows.map(tx=>{
-                  const catLabel = tId('categories', tx.category, getCat(tx.category).label);
+                  const catLabel = catLabelOf(tx);
                   const isIn = tx.direction==='in';
                   return (
                     <tr key={tx.id}>
@@ -158,7 +228,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
                         {isIn?'+':'-'}{fmt(Number(tx.amount),tx.currency)}
                       </td>
                       <td className="tr" style={{fontWeight:600,fontSize:13,opacity:tx.status==='confirmed'?1:.5}}>{fmt(tx.runningBalance,account.currency)}</td>
-                      <td><span className={`badge ${tx.status==='confirmed'?'bg-green':tx.status==='pending'?'bg-amber':'bg-red'}`}>{t(`status.${tx.status||'confirmed'}`)}</span></td>
+                      <td><span className={`badge ${tx.status==='confirmed'?'bg-green':tx.status==='pending'?'bg-amber':'bg-red'}`}>{statusLabelOf(tx)}</span></td>
                     </tr>
                   );
                 })}
