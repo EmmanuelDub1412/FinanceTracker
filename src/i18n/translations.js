@@ -164,7 +164,7 @@ export const translations = {
     months: ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'],
     categories: {
       'REV-SAL':'Salaire / Honoraires','REV-BIZ':'Revenus Affaires','REV-DIV':'Autres Revenus',
-      'DEP-ALI':'Alimentation','DEP-TRA':'Transport / Carburant','DEP-LOG':'Logement / Loyer',
+      'DEP-ALI':'Alimentation','DEP-TRA':'Transport / Carburant','DEP-AUTO':'Voiture / Automobile','DEP-LOG':'Logement / Loyer',
       'DEP-SAN':'Santé / Pharmacie','DEP-EDU':'Éducation / Formation','DEP-COM':'Communication',
       'DEP-LOI':'Loisirs / Sorties','DEP-HAB':'Habillement','DEP-EEA':'Épargne / Investissement',
       'DEP-REM':'Remboursement Dettes','DEP-DIV':'Dépenses Diverses','TRF-INT':'Transfert Interne',
@@ -336,7 +336,7 @@ export const translations = {
     months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
     categories: {
       'REV-SAL':'Salary / Fees','REV-BIZ':'Business Income','REV-DIV':'Other Income',
-      'DEP-ALI':'Food','DEP-TRA':'Transport / Fuel','DEP-LOG':'Housing / Rent',
+      'DEP-ALI':'Food','DEP-TRA':'Transport / Fuel','DEP-AUTO':'Car / Automobile','DEP-LOG':'Housing / Rent',
       'DEP-SAN':'Health / Pharmacy','DEP-EDU':'Education / Training','DEP-COM':'Communication',
       'DEP-LOI':'Leisure / Outings','DEP-HAB':'Clothing','DEP-EEA':'Savings / Investment',
       'DEP-REM':'Debt Repayment','DEP-DIV':'Miscellaneous Expenses','TRF-INT':'Internal Transfer',

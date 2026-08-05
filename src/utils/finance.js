@@ -63,6 +63,7 @@ export const CATEGORIES = [
   {id:'REV-DIV',label:'Autres Revenus',         type:'income',  icon:'💰'},
   {id:'DEP-ALI',label:'Alimentation',           type:'expense', icon:'🛒'},
   {id:'DEP-TRA',label:'Transport / Carburant',  type:'expense', icon:'⛽'},
+  {id:'DEP-AUTO',label:'Voiture / Automobile',  type:'expense', icon:'🚗'},
   {id:'DEP-LOG',label:'Logement / Loyer',       type:'expense', icon:'🏠'},
   {id:'DEP-SAN',label:'Santé / Pharmacie',      type:'expense', icon:'💊'},
   {id:'DEP-EDU',label:'Éducation / Formation',  type:'expense', icon:'📚'},
