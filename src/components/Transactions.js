@@ -176,7 +176,41 @@ function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBen
             </div>
             <div className="fg">
               <label className="fl">{t('transactions.beneficiary')}</label>
-              <input className="fi" value={form.beneficiary||''} onChange={e=>set('beneficiary',e.target.value)} placeholder={t('transactions.optional')}/>
+              {addingBen ? (
+                <div className="flex g8">
+                  <input className="fi" autoFocus value={newBenName} onChange={e=>setNewBenName(e.target.value)}
+                    placeholder={t('transactions.newBeneficiaryPh')}
+                    onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); confirmNewBeneficiary(); } if(e.key==='Escape'){ setAddingBen(false); setNewBenName(''); } }}/>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={confirmNewBeneficiary}>{t('transactions.confirm')}</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={()=>{setAddingBen(false);setNewBenName('');}}><X size={12}/></button>
+                </div>
+              ) : (
+                <div className="flex g8">
+                  <select className="fs" style={{flex:1}} value={form.beneficiary||''} onChange={e=>{
+                    if (e.target.value === '__new__') { setAddingBen(true); return; }
+                    set('beneficiary', e.target.value);
+                  }}>
+                    <option value="">{t('transactions.optional')}</option>
+                    {form.beneficiary && !beneficiaries.find(b=>b.name===form.beneficiary) && (
+                      <option value={form.beneficiary}>{form.beneficiary}</option>
+                    )}
+                    {beneficiaries.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}
+                    <option value="__new__">+ {t('transactions.newBeneficiary')}</option>
+                  </select>
+                  {form.beneficiary && beneficiaries.find(b=>b.name===form.beneficiary) && (
+                    <button type="button" className="btn btn-ghost btn-sm" title={t('transactions.deleteBeneficiary')}
+                      onClick={()=>{
+                        const b = beneficiaries.find(x=>x.name===form.beneficiary);
+                        if (b && window.confirm(t('transactions.deleteBeneficiaryConfirm'))) {
+                          onDeleteBeneficiary?.(b.id);
+                          set('beneficiary','');
+                        }
+                      }}>
+                      <Trash2 size={12}/>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -232,7 +266,7 @@ function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBen
   );
 }
 
-export default function Transactions({ transactions, accounts, settings, onAdd, onUpdate, onDelete }) {
+export default function Transactions({ transactions, accounts, settings, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete }) {
   const { t, tId, lang } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing,   setEditing]   = useState(null);
@@ -390,7 +424,7 @@ export default function Transactions({ transactions, accounts, settings, onAdd, 
         </div>
       </div>
 
-      {showModal&&<TxModal tx={editing} accounts={accounts} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
+      {showModal&&<TxModal tx={editing} accounts={accounts} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onDeleteBeneficiary={onDeleteBeneficiary} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
     </div>
   );
 }

@@ -80,6 +80,9 @@ export const translations = {
       col_amount: 'Montant', col_status: 'Statut',
       receipt: 'Pièce justificative', takePhoto: 'Prendre une photo', chooseFile: 'Choisir un fichier',
       viewReceipt: 'Voir la pièce jointe', uploading: 'Envoi en cours…', uploadError: "Erreur lors de l'envoi :",
+      newBeneficiary: 'Nouveau bénéficiaire', newBeneficiaryPh: 'Nom du bénéficiaire',
+      confirm: 'Ajouter', deleteBeneficiary: 'Supprimer de la liste',
+      deleteBeneficiaryConfirm: 'Supprimer ce bénéficiaire de la liste ?',
     },
     savings: {
       title: 'Épargne & Objectifs', subtitle: 'Définissez vos cibles et suivez votre progression',
@@ -248,6 +251,9 @@ export const translations = {
       col_amount: 'Amount', col_status: 'Status',
       receipt: 'Receipt', takePhoto: 'Take a photo', chooseFile: 'Choose a file',
       viewReceipt: 'View attachment', uploading: 'Uploading…', uploadError: 'Upload error:',
+      newBeneficiary: 'New beneficiary', newBeneficiaryPh: 'Beneficiary name',
+      confirm: 'Add', deleteBeneficiary: 'Remove from list',
+      deleteBeneficiaryConfirm: 'Remove this beneficiary from the list?',
     },
     savings: {
       title: 'Savings & Goals', subtitle: 'Set your targets and track your progress',

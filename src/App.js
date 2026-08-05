@@ -103,7 +103,7 @@ export default function App() {
       <main className="main">
         {page==='dashboard'    && <Dashboard    accounts={ft.accounts} transactions={ft.transactions} savings={ft.savings} loans={ft.loans} settings={ft.settings} onNav={setPage}/>}
         {page==='accounts'     && <Accounts     accounts={ft.accounts} transactions={ft.transactions} settings={ft.settings} onAdd={ft.addAccount} onUpdate={ft.updateAccount} onDelete={ft.deleteAccount}/>}
-        {page==='transactions' && <Transactions transactions={ft.transactions} accounts={ft.accounts} settings={ft.settings} onAdd={ft.addTransaction} onUpdate={ft.updateTransaction} onDelete={ft.deleteTransaction}/>}
+        {page==='transactions' && <Transactions transactions={ft.transactions} accounts={ft.accounts} settings={ft.settings} beneficiaries={ft.beneficiaries} onAddBeneficiary={ft.addBeneficiary} onDeleteBeneficiary={ft.deleteBeneficiary} onAdd={ft.addTransaction} onUpdate={ft.updateTransaction} onDelete={ft.deleteTransaction}/>}
         {page==='loansCredits' && <LoansCredits loans={ft.loans} settings={ft.settings} onAdd={ft.addLoan} onUpdate={ft.updateLoan} onDelete={ft.deleteLoan}/>}
         {page==='savings'      && <Savings      savings={ft.savings} onAdd={ft.addSaving} onUpdate={ft.updateSaving} onDelete={ft.deleteSaving}/>}
         {page==='loan'         && <LoanSimulator settings={ft.settings}/>}
