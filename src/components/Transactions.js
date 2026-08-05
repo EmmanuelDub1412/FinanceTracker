@@ -282,7 +282,7 @@ export default function Transactions({ transactions, accounts, settings, benefic
 
   const filtered = useMemo(()=>transactions.filter(t=>{
     if(filterType!=='all'&&t.txType!==filterType) return false;
-    if(filterMonth){const d=new Date(t.date);const m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(m!==filterMonth)return false;}
+    if(filterMonth){const d=new Date(t.date+'T00:00:00');const m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(m!==filterMonth)return false;}
     if(filterAcc&&t.debitAccount!==filterAcc&&t.creditAccount!==filterAcc) return false;
     if(search){const s=search.toLowerCase();if(!t.description?.toLowerCase().includes(s)&&!t.beneficiary?.toLowerCase().includes(s)&&!getCat(t.category).label.toLowerCase().includes(s))return false;}
     return true;
@@ -304,7 +304,7 @@ export default function Transactions({ transactions, accounts, settings, benefic
   const nativeNet = { HTG: nativeIncome.HTG-nativeExpense.HTG, USD: nativeIncome.USD-nativeExpense.USD };
 
   const handleSave = (data)=>{ editing?onUpdate(editing.id,data):onAdd(data); setShowModal(false);setEditing(null); };
-  const fmtDate = d=>{if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
+  const fmtDate = d=>{if(!d)return'';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
 
   return (
     <div>

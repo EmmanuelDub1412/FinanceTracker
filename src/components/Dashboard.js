@@ -46,7 +46,7 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
   },[balances,loans]);
 
   const thisMonth = useMemo(()=>transactions.filter(t=>{
-    const d=new Date(t.date);
+    const d=new Date(t.date+'T00:00:00');
     return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&t.status==='confirmed';
   }),[transactions,now]);
 
@@ -65,7 +65,7 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
   const monthlyData = useMemo(()=>Array.from({length:6},(_,i)=>{
     const d=new Date(now.getFullYear(),now.getMonth()-5+i,1);
     const m=d.getMonth(),y=d.getFullYear();
-    const txs=transactions.filter(t=>{const td=new Date(t.date);return td.getMonth()===m&&td.getFullYear()===y&&t.status==='confirmed';});
+    const txs=transactions.filter(t=>{const td=new Date(t.date+'T00:00:00');return td.getMonth()===m&&td.getFullYear()===y&&t.status==='confirmed';});
     return {
       name:MONTHS[m],
       income:txs.filter(t=>t.txType==='income').reduce((s,t)=>s+toHTG(Number(t.amount),t.currency,rate),0),

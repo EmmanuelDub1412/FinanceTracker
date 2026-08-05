@@ -4,7 +4,13 @@ export const fmtUSD = (n) =>
   new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n??0)+' USD';
 export const fmt = (n, currency='HTG') => currency==='USD' ? fmtUSD(n) : fmtHTG(n);
 export const toHTG = (amount, currency, rate) => currency==='USD' ? Number(amount)*rate : Number(amount);
-export const today = () => new Date().toISOString().split('T')[0];
+export const toLocalISODate = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+};
+export const today = () => toLocalISODate(new Date());
 export const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 export const computeBalance = (account, transactions) => {
   let balance = Number(account.initialBalance)||0;

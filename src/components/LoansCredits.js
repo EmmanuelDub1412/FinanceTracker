@@ -3,7 +3,7 @@ import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
   AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react';
-import { fmt, toHTG, fmtHTG } from '../utils/finance';
+import { fmt, toHTG, fmtHTG, today, toLocalISODate } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const KINDS = ['receivable', 'payable', 'loan', 'bond', 'subscription'];
@@ -11,16 +11,14 @@ const KIND_ICON = { receivable: ArrowDownCircle, payable: ArrowUpCircle, loan: L
 const KIND_CLS  = { receivable: 'green', payable: 'red', loan: 'blue', bond: 'purple', subscription: 'amber' };
 const FREQ_PER_YEAR = { monthly: 12, quarterly: 4, semiannual: 2, annual: 1 };
 
-const today = () => new Date().toISOString().split('T')[0];
-
 // Avance une date d'une periode (mensuelle/trimestrielle/semestrielle/
-// annuelle) — utilise pour faire glisser l'echeance d'un abonnement apres
+// annuelle) : utilise pour faire glisser l'echeance d'un abonnement apres
 // l'avoir marque comme paye.
 function advanceDate(dateStr, frequency) {
   const months = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 }[frequency] || 1;
   const base = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
   const next = new Date(base.getFullYear(), base.getMonth() + months, base.getDate());
-  return next.toISOString().split('T')[0];
+  return toLocalISODate(next);
 }
 
 // Next occurrence (on/after today) of a given day-of-month, for loans paid monthly.
@@ -31,7 +29,7 @@ function nextDueFromDay(dueDay) {
   if (cand < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
     cand = new Date(now.getFullYear(), now.getMonth() + 1, d);
   }
-  return cand.toISOString().split('T')[0];
+  return toLocalISODate(cand);
 }
 
 function daysUntil(dateStr) {
@@ -463,7 +461,7 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                     <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8, maxHeight: 140, overflowY: 'auto' }}>
                       {[...l.paymentHistory].reverse().map((p, i) => (
                         <div key={i} className="fb" style={{ fontSize: 11, color: 'var(--text2)', padding: '3px 0' }}>
-                          <span>{t('loansCredits.paidOn')} {new Date(p.date).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
+                          <span>{t('loansCredits.paidOn')} {new Date(p.date+'T00:00:00').toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
                           <span style={{ fontWeight: 600, color: 'var(--g1)' }}>{fmt(p.amount, l.currency)}</span>
                         </div>
                       ))}

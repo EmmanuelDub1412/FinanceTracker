@@ -173,7 +173,7 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                 <div className="fb" style={{fontSize:12,color:'var(--text2)'}}>
                   <span>{fmt(Number(g.currentAmount)||0,g.currency)} {t('savings.saved')}</span>
                   {Number(g.monthlyContrib)>0&&<span>+{fmt(Number(g.monthlyContrib),g.currency)}{t('savings.perMonth')}</span>}
-                  {g.targetDate&&<span style={{display:'flex',alignItems:'center',gap:3}}><Calendar size={11}/>{new Date(g.targetDate).toLocaleDateString(lang==='en'?'en-US':'fr-FR',{month:'short',year:'numeric'})}</span>}
+                  {g.targetDate&&<span style={{display:'flex',alignItems:'center',gap:3}}><Calendar size={11}/>{new Date(g.targetDate+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'fr-FR',{month:'short',year:'numeric'})}</span>}
                 </div>
                 {g.reachMonth>=0&&g.pct<100&&(
                   <div style={{marginTop:10,padding:'7px 12px',background:'var(--g-bg)',borderRadius:7,fontSize:12,color:'var(--g1)',fontWeight:600,border:'1px solid var(--g-light)',display:'flex',alignItems:'center',gap:6}}>

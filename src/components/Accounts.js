@@ -114,7 +114,7 @@ function AccountModal({ account, onSave, onClose }) {
 function AccountHistoryModal({ account, transactions, onClose }) {
   const { t, tId, lang } = useLanguage();
   const allRows = useMemo(()=>accountHistory(account, transactions), [account, transactions]);
-  const fmtDate = d=>{if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
+  const fmtDate = d=>{if(!d)return'';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
 
   const [fromDate, setFromDate] = useState('');
   const [toDate,   setToDate]   = useState('');
