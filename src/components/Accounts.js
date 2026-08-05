@@ -119,11 +119,28 @@ function AccountHistoryModal({ account, transactions, onClose }) {
   const [fromDate, setFromDate] = useState('');
   const [toDate,   setToDate]   = useState('');
 
-  const rows = useMemo(()=>allRows.filter(tx=>{
+  const periodRows = useMemo(()=>allRows.filter(tx=>{
     if(fromDate && tx.date<fromDate) return false;
     if(toDate && tx.date>toDate) return false;
     return true;
   }),[allRows,fromDate,toDate]);
+
+  // L'historique commence toujours par un point de depart : le solde du
+  // compte juste avant la premiere transaction affichee (le solde initial
+  // du compte si aucune periode n'est filtree, ou le solde a la date de
+  // debut choisie sinon).
+  const openingBalance = useMemo(()=>{
+    if(!fromDate) return Number(account.initialBalance)||0;
+    const before = allRows.filter(tx=>tx.date<fromDate);
+    return before.length ? before[before.length-1].runningBalance : (Number(account.initialBalance)||0);
+  },[allRows,fromDate,account.initialBalance]);
+
+  const openingRow = {
+    id:'__opening__', isOpening:true, date:fromDate||account.createdAt||'', description:t('accounts.openingBalance'),
+    runningBalance:openingBalance,
+  };
+
+  const rows = useMemo(()=>[openingRow, ...periodRows],[periodRows,openingBalance,fromDate]);
 
   const catLabelOf = tx => tId('categories', tx.category, getCat(tx.category).label);
   const statusLabelOf = tx => t(`status.${tx.status||'confirmed'}`);
@@ -135,6 +152,12 @@ function AccountHistoryModal({ account, transactions, onClose }) {
       ? `${t('accounts.periodFrom')} ${fromDate?fmtDate(fromDate):t('accounts.periodStart')} ${t('accounts.periodTo')} ${toDate?fmtDate(toDate):t('accounts.periodToday')}`
       : t('accounts.periodAll');
     const rowsHtml = rows.map(tx=>{
+      if(tx.isOpening){
+        return `<tr style="background:#F0F2F5;font-weight:700">
+          <td>${fmtDate(tx.date)}</td><td>${tx.description}</td><td></td><td></td>
+          <td style="text-align:right">${fmt(tx.runningBalance,account.currency)}</td><td></td>
+        </tr>`;
+      }
       const isIn = tx.direction==='in';
       return `<tr>
         <td>${fmtDate(tx.date)}</td>
@@ -194,7 +217,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
           </button>
         </div>
 
-        {rows.length===0 ? (
+        {allRows.length===0 ? (
           <div className="empty" style={{padding:'24px 0'}}>
             <div className="empty-ico"><History size={40}/></div>
             <div className="empty-txt">{t('accounts.historyEmpty')}</div>
@@ -212,6 +235,17 @@ function AccountHistoryModal({ account, transactions, onClose }) {
               </thead>
               <tbody>
                 {rows.map(tx=>{
+                  if(tx.isOpening){
+                    return (
+                      <tr key={tx.id} style={{background:'var(--bg3)'}}>
+                        <td style={{color:'var(--text2)',fontSize:12,whiteSpace:'nowrap',fontWeight:700}}>{tx.date?fmtDate(tx.date):''}</td>
+                        <td style={{fontWeight:700,fontSize:13}}>{tx.description}</td>
+                        <td></td><td></td>
+                        <td className="tr" style={{fontWeight:700,fontSize:13}}>{fmt(tx.runningBalance,account.currency)}</td>
+                        <td></td>
+                      </tr>
+                    );
+                  }
                   const catLabel = catLabelOf(tx);
                   const isIn = tx.direction==='in';
                   return (
