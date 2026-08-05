@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { User, Cloud, Globe, ArrowLeftRight, ShieldCheck, LogOut } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Settings({ user, settings, onSave, onLogout }) {
@@ -17,7 +18,7 @@ export default function Settings({ user, settings, onSave, onLogout }) {
         <div><div className="pt">{t('settings.title')}</div><div className="ps">{t('settings.subtitle')}</div></div>
       </div>
       <div className="card mb16">
-        <div className="card-hd"><div className="card-title">👤 {t('settings.account')}</div></div>
+        <div className="card-hd"><div className="card-title"><User size={16} style={{color:'var(--g1)'}}/> {t('settings.account')}</div></div>
         <div className="flex g12" style={{alignItems:'center',marginBottom:16}}>
           <img src={user?.picture||user?.photoURL} alt="" style={{width:52,height:52,borderRadius:'50%',border:'2px solid var(--gold2)'}}/>
           <div>
@@ -25,14 +26,14 @@ export default function Settings({ user, settings, onSave, onLogout }) {
             <div style={{color:'var(--text2)',fontSize:13}}>{user?.email}</div>
           </div>
         </div>
-        <button className="btn btn-danger" onClick={onLogout}>{t('settings.logout')}</button>
+        <button className="btn btn-danger" onClick={onLogout}><LogOut size={14}/> {t('settings.logout')}</button>
       </div>
       <div className="card mb16">
-        <div className="card-hd"><div className="card-title">{t('settings.storage')}</div></div>
+        <div className="card-hd"><div className="card-title"><Cloud size={16} style={{color:'var(--g1)'}}/> {t('settings.storage')}</div></div>
         <div style={{fontSize:13,color:'var(--text2)'}}>{t('settings.storageText')}</div>
       </div>
       <div className="card mb16">
-        <div className="card-hd"><div className="card-title">{t('settings.language')}</div></div>
+        <div className="card-hd"><div className="card-title"><Globe size={16} style={{color:'var(--g1)'}}/> {t('settings.language')}</div></div>
         <div style={{fontSize:13,color:'var(--text2)',marginBottom:12}}>{t('settings.languageText')}</div>
         <div className="flex g8">
           <button className={`btn ${lang==='fr'?'btn-gold':'btn-ghost'}`} onClick={()=>setLang('fr')}>Français</button>
@@ -40,7 +41,7 @@ export default function Settings({ user, settings, onSave, onLogout }) {
         </div>
       </div>
       <div className="card mb16">
-        <div className="card-hd"><div className="card-title">{t('settings.exchangeRate')}</div></div>
+        <div className="card-hd"><div className="card-title"><ArrowLeftRight size={16} style={{color:'var(--g1)'}}/> {t('settings.exchangeRate')}</div></div>
         <div className="fgrid" style={{maxWidth:380}}>
           <div className="fg">
             <label className="fl">{t('settings.rateLabel')}</label>
@@ -50,7 +51,7 @@ export default function Settings({ user, settings, onSave, onLogout }) {
         </div>
       </div>
       <div className="card">
-        <div className="card-hd"><div className="card-title">{t('settings.privacy')}</div></div>
+        <div className="card-hd"><div className="card-title"><ShieldCheck size={16} style={{color:'var(--g1)'}}/> {t('settings.privacy')}</div></div>
         <div style={{fontSize:13,color:'var(--text2)',lineHeight:2}}>
           <div>• {t('settings.privacyItem1')}</div>
         </div>
