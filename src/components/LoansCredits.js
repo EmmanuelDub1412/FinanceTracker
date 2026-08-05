@@ -1,16 +1,27 @@
 import React, { useState, useMemo } from 'react';
 import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react';
 import { fmt, toHTG, fmtHTG } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
-const KINDS = ['receivable', 'payable', 'loan', 'bond'];
-const KIND_ICON = { receivable: ArrowDownCircle, payable: ArrowUpCircle, loan: Landmark, bond: TrendingUp };
-const KIND_CLS  = { receivable: 'green', payable: 'red', loan: 'blue', bond: 'purple' };
+const KINDS = ['receivable', 'payable', 'loan', 'bond', 'subscription'];
+const KIND_ICON = { receivable: ArrowDownCircle, payable: ArrowUpCircle, loan: Landmark, bond: TrendingUp, subscription: RefreshCw };
+const KIND_CLS  = { receivable: 'green', payable: 'red', loan: 'blue', bond: 'purple', subscription: 'amber' };
+const FREQ_PER_YEAR = { monthly: 12, quarterly: 4, semiannual: 2, annual: 1 };
 
 const today = () => new Date().toISOString().split('T')[0];
+
+// Avance une date d'une periode (mensuelle/trimestrielle/semestrielle/
+// annuelle) — utilise pour faire glisser l'echeance d'un abonnement apres
+// l'avoir marque comme paye.
+function advanceDate(dateStr, frequency) {
+  const months = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 }[frequency] || 1;
+  const base = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+  const next = new Date(base.getFullYear(), base.getMonth() + months, base.getDate());
+  return next.toISOString().split('T')[0];
+}
 
 // Next occurrence (on/after today) of a given day-of-month, for loans paid monthly.
 function nextDueFromDay(dueDay) {
@@ -46,7 +57,7 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
   const canSave = form.name && (
     (kind === 'receivable' || kind === 'payable') ? form.amount :
     kind === 'loan' ? form.remainingBalance :
-    kind === 'bond' ? form.amount : false
+    (kind === 'bond' || kind === 'subscription') ? form.amount : false
   );
 
   const handleSave = () => {
@@ -187,6 +198,38 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
             </>
           )}
 
+          {kind === 'subscription' && (
+            <>
+              <div className="frow">
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_amount')}</label>
+                  <input className="fi" type="number" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
+                </div>
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_currency')}</label>
+                  <select className="fs" value={form.currency} onChange={e => set('currency', e.target.value)}>
+                    <option value="HTG">HTG</option><option value="USD">USD</option>
+                  </select>
+                </div>
+              </div>
+              <div className="frow">
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_frequency')}</label>
+                  <select className="fs" value={form.frequency} onChange={e => set('frequency', e.target.value)}>
+                    <option value="monthly">{t('freq.monthly')}</option>
+                    <option value="quarterly">{t('freq.quarterly')}</option>
+                    <option value="semiannual">{t('freq.semiannual')}</option>
+                    <option value="annual">{t('freq.annual')}</option>
+                  </select>
+                </div>
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_nextPaymentDate')}</label>
+                  <input className="fi" type="date" value={form.nextPaymentDate} onChange={e => set('nextPaymentDate', e.target.value)} />
+                </div>
+              </div>
+            </>
+          )}
+
           <hr className="div" />
           <div className="tgl-row">
             <span style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -233,9 +276,16 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
 
   const toggleHistory = (id) => setOpenHistory(h => ({ ...h, [id]: !h[id] }));
 
-  // Marque la mensualite du jour comme payee : archive le versement dans
-  // paymentHistory et reduit le solde restant du pret.
+  // Marque l'echeance du jour comme payee et archive le versement dans
+  // paymentHistory. Pour un pret : reduit le solde restant. Pour un
+  // abonnement : fait glisser la prochaine echeance selon la frequence.
   const markPaid = (item) => {
+    if (item.kind === 'subscription') {
+      const amt = Number(item.amount) || 0;
+      const history = [...(item.paymentHistory || []), { date: today(), amount: amt }];
+      onUpdate(item.id, { nextPaymentDate: advanceDate(item.nextPaymentDate, item.frequency), paymentHistory: history });
+      return;
+    }
     const amt = Number(item.monthlyPayment) || 0;
     const newBalance = Math.max(0, (Number(item.remainingBalance) || 0) - amt);
     const history = [...(item.paymentHistory || []), { date: today(), amount: amt }];
@@ -245,12 +295,13 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
   const enriched = useMemo(() => loans.map(l => {
     let dueDate = l.dueDate || null;
     if (l.kind === 'loan') dueDate = nextDueFromDay(l.dueDay);
-    if (l.kind === 'bond') dueDate = l.nextPaymentDate || null;
+    if (l.kind === 'bond' || l.kind === 'subscription') dueDate = l.nextPaymentDate || null;
     const dLeft = dueDate ? daysUntil(dueDate) : null;
     const alertFired = (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
     const nativeAmount = l.kind === 'loan' ? (Number(l.remainingBalance) || 0) : (Number(l.amount) || 0);
     const valueHTG = toHTG(nativeAmount, l.currency, rate);
-    return { ...l, dueDate, dLeft, alertFired, nativeAmount, valueHTG };
+    const monthlyEquivalent = l.kind === 'subscription' ? (Number(l.amount) || 0) * (FREQ_PER_YEAR[l.frequency] || 12) / 12 : 0;
+    return { ...l, dueDate, dLeft, alertFired, nativeAmount, valueHTG, monthlyEquivalent };
   }), [loans, rate]);
 
   const groups = {
@@ -258,24 +309,27 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
     payable: enriched.filter(l => l.kind === 'payable'),
     loan: enriched.filter(l => l.kind === 'loan'),
     bond: enriched.filter(l => l.kind === 'bond'),
+    subscription: enriched.filter(l => l.kind === 'subscription'),
   };
 
   // Pour chaque categorie : total combine (converti, devise au choix) +
   // sous-totaux natifs (non convertis) par devise.
-  const nativeByCurrency = (items) => ({
-    HTG: items.filter(l => l.currency === 'HTG').reduce((s, l) => s + l.nativeAmount, 0),
-    USD: items.filter(l => l.currency === 'USD').reduce((s, l) => s + l.nativeAmount, 0),
+  const nativeByCurrency = (items, key = 'nativeAmount') => ({
+    HTG: items.filter(l => l.currency === 'HTG').reduce((s, l) => s + l[key], 0),
+    USD: items.filter(l => l.currency === 'USD').reduce((s, l) => s + l[key], 0),
   });
 
   const totalReceivable = groups.receivable.reduce((s, l) => s + l.valueHTG, 0);
   const totalPayable = groups.payable.reduce((s, l) => s + l.valueHTG, 0);
   const totalLoanRemaining = groups.loan.reduce((s, l) => s + l.valueHTG, 0);
   const totalBondValue = groups.bond.reduce((s, l) => s + l.valueHTG, 0);
+  const totalSubscriptionsMonthly = groups.subscription.reduce((s, l) => s + toHTG(l.monthlyEquivalent, l.currency, rate), 0);
 
   const nativeReceivable = nativeByCurrency(groups.receivable);
   const nativePayable = nativeByCurrency(groups.payable);
   const nativeLoan = nativeByCurrency(groups.loan);
   const nativeBond = nativeByCurrency(groups.bond);
+  const nativeSubscriptions = nativeByCurrency(groups.subscription, 'monthlyEquivalent');
 
   const handleSave = (data) => { editing ? onUpdate(editing.id, data) : onAdd(data); setShowModal(false); setEditing(null); };
   const openNew = (kind) => { setNewKind(kind); setEditing(null); setShowModal(true); };
@@ -310,6 +364,7 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
         <KPI icon={ArrowUpCircle} label={t('loansCredits.totalPayable')} value={totalPayable} native={nativePayable} cls="red" />
         <KPI icon={Landmark} label={t('loansCredits.totalLoanRemaining')} value={totalLoanRemaining} native={nativeLoan} cls="blue" />
         <KPI icon={TrendingUp} label={t('loansCredits.totalBondValue')} value={totalBondValue} native={nativeBond} cls="teal" />
+        <KPI icon={RefreshCw} label={t('loansCredits.totalSubscriptionsMonthly')} value={totalSubscriptionsMonthly} native={nativeSubscriptions} cls="amber" />
       </div>
 
       {enriched.filter(l => l.alertFired).map(l => (
@@ -366,6 +421,13 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                         </div>
                       )}
                     </>
+                  ) : kind === 'subscription' ? (
+                    <>
+                      <div className="acc-bal neg">{fmt(Number(l.amount) || 0, l.currency)}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
+                        {t(`freq.${l.frequency}`)}
+                      </div>
+                    </>
                   ) : (
                     <div className={`acc-bal ${kind === 'payable' ? 'neg' : 'pos'}`}>{fmt(Number(l.amount) || 0, l.currency)}</div>
                   )}
@@ -378,12 +440,12 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                   {l.notes && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>{l.notes}</div>}
 
                   <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                    {kind === 'loan' && Number(l.remainingBalance) > 0 && (
+                    {(kind === 'loan' ? Number(l.remainingBalance) > 0 : kind === 'subscription') && (
                       <button className="btn btn-primary btn-sm" onClick={() => markPaid(l)}>
                         <CheckCircle2 size={12} /> {t('loansCredits.markPaid')}
                       </button>
                     )}
-                    {kind === 'loan' && (l.paymentHistory || []).length > 0 && (
+                    {(kind === 'loan' || kind === 'subscription') && (l.paymentHistory || []).length > 0 && (
                       <button className="btn btn-ghost btn-sm" onClick={() => toggleHistory(l.id)}>
                         <History size={12} /> {t('loansCredits.history')} ({l.paymentHistory.length})
                         {openHistory[l.id] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -397,7 +459,7 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                     </button>
                   </div>
 
-                  {kind === 'loan' && openHistory[l.id] && (l.paymentHistory || []).length > 0 && (
+                  {(kind === 'loan' || kind === 'subscription') && openHistory[l.id] && (l.paymentHistory || []).length > 0 && (
                     <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8, maxHeight: 140, overflowY: 'auto' }}>
                       {[...l.paymentHistory].reverse().map((p, i) => (
                         <div key={i} className="fb" style={{ fontSize: 11, color: 'var(--text2)', padding: '3px 0' }}>
