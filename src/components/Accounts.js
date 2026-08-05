@@ -46,8 +46,8 @@ function AccountModal({ account, onSave, onClose }) {
             <div className="fg">
               <label className="fl">{t('accounts.m_currency')}</label>
               <select className="fs" value={form.currency} onChange={e=>set('currency',e.target.value)}>
-                <option value="HTG">HTG — Gourde</option>
-                <option value="USD">USD — Dollar</option>
+                <option value="HTG">HTG (Gourde)</option>
+                <option value="USD">USD (Dollar)</option>
               </select>
             </div>
           </div>
@@ -120,7 +120,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{maxWidth:640}}>
         <div className="modal-hd">
-          <div className="modal-ttl"><History size={18} style={{color:'var(--g1)'}}/> {t('accounts.history')} — {account.name}</div>
+          <div className="modal-ttl"><History size={18} style={{color:'var(--g1)'}}/> {t('accounts.history')}: {account.name}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 
@@ -266,7 +266,7 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
         <div key={a.id} className="al danger">
           <AlertTriangle size={18} style={{color:'var(--red)',flexShrink:0,marginTop:1}}/>
           <div>
-            <div className="al-ttl">{t('accounts.alertPrefix')} — {a.name}</div>
+            <div className="al-ttl">{t('accounts.alertPrefix')}: {a.name}</div>
             <div className="al-det">
               {a.isCredit
                 ? `${t('accounts.available')} : ${fmt(a.available,a.currency)} (${t('accounts.threshold')} : ${fmt(Number(a.alertThreshold),a.currency)})`

@@ -75,7 +75,7 @@ export const CATEGORIES = [
   {id:'DEP-DIV',label:'Dépenses Diverses',      type:'expense', icon:'📦'},
   {id:'TRF-INT',label:'Transfert Interne',      type:'transfer',icon:'🔄'},
 ];
-export const getCat = (id) => CATEGORIES.find(c=>c.id===id)||{label:id||'—',icon:'•'};
+export const getCat = (id) => CATEGORIES.find(c=>c.id===id)||{label:id||'-',icon:'•'};
 export const ACCOUNT_TYPES = [
   {id:'bank',  label:'Banque',       icon:'🏦',color:'#2563EB'},
   {id:'credit',label:'Carte Crédit', icon:'💳',color:'#DC2626'},

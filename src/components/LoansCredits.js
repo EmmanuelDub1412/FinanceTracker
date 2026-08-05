@@ -316,7 +316,7 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
         <div key={l.id} className="al danger">
           <AlertTriangle size={18} style={{ color: 'var(--red)', flexShrink: 0, marginTop: 1 }} />
           <div>
-            <div className="al-ttl">{t('loansCredits.alertPrefix')} — {l.name}</div>
+            <div className="al-ttl">{t('loansCredits.alertPrefix')}: {l.name}</div>
             <div className="al-det">
               {l.dLeft < 0
                 ? `${t('loansCredits.overdue')} (${Math.abs(l.dLeft)} ${t('loansCredits.daysLeft')})`

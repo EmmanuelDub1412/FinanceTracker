@@ -95,7 +95,7 @@ function DepositModal({ goal, onSave, onClose }) {
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{maxWidth:380}}>
         <div className="modal-hd">
-          <div className="modal-ttl"><PlusCircle size={18} style={{color:'var(--g1)'}}/> {t('savings.d_title')} — {goal.name}</div>
+          <div className="modal-ttl"><PlusCircle size={18} style={{color:'var(--g1)'}}/> {t('savings.d_title')}: {goal.name}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="fgrid">
@@ -193,7 +193,7 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
             <div>
               <div className="card" style={{position:'sticky',top:16}}>
                 <div className="card-hd">
-                  <div className="card-title"><TrendingUp size={16} style={{color:'var(--g1)'}}/> {t('savings.projection')} — {selectedGoal.name}</div>
+                  <div className="card-title"><TrendingUp size={16} style={{color:'var(--g1)'}}/> {t('savings.projection')}: {selectedGoal.name}</div>
                   <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)}>✕</button>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>

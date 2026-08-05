@@ -258,7 +258,7 @@ export default function InvestmentSimulator() {
                   <tr key={row.period}>
                     <td style={{ fontWeight: 600 }}>{row.period}</td>
                     <td className="tr">{fmt(row.startBalance)}</td>
-                    <td className="tr gv">{row.contribution > 0 ? fmt(row.contribution) : '—'}</td>
+                    <td className="tr gv">{row.contribution > 0 ? fmt(row.contribution) : '-'}</td>
                     <td className="tr gv">{fmt(row.interest)}</td>
                     <td className="tr" style={{ fontWeight: 600 }}>{fmt(row.endBalance)}</td>
                   </tr>

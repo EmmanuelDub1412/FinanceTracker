@@ -385,7 +385,7 @@ export default function Transactions({ transactions, accounts, settings, benefic
                     const catLabel=tId('categories',tx.category,getCat(tx.category).label);
                     const isIn=tx.txType==='income';
                     const StatusIcon=STATUS_ICON[tx.status]||STATUS_ICON.confirmed;
-                    const accName=accMap[tx.txType==='income'?tx.creditAccount:tx.debitAccount]||'—';
+                    const accName=accMap[tx.txType==='income'?tx.creditAccount:tx.debitAccount]||'-';
                     const amtHTG=toHTG(Number(tx.amount),tx.currency,rate);
                     return (
                       <tr key={tx.id}>
