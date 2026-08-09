@@ -553,7 +553,7 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
                   <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
                     {((['loan', 'payable', 'receivable'].includes(kind) && remaining > 0) || kind === 'bond' || kind === 'subscription') && (
                       <button className="btn btn-primary btn-sm" onClick={() => setPayingItem(l)}>
-                        <CheckCircle2 size={12} /> {t('loansCredits.markPaid')}
+                        <CheckCircle2 size={12} /> {t('loansCredits.m_recordPayment')}
                       </button>
                     )}
                     {(l.paymentHistory || []).length > 0 && (
