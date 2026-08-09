@@ -14,8 +14,18 @@ const FREQ_PER_YEAR = { monthly: 12, quarterly: 4, semiannual: 2, annual: 1 };
 // Les autres (receivable, bond) en ajoutent (entree).
 const OUT_KINDS = ['loan', 'payable', 'subscription'];
 
+// Certaines fiches anciennes ont ete enregistrees avec remainingBalance a
+// chaine vide (''), qui n'est pas capte par `??` (seulement null/undefined).
+// Ce helper traite '', null et undefined comme "non defini" et retombe sur
+// le montant d'origine.
+function remainingOf(item) {
+  const rb = item.remainingBalance;
+  const base = (rb === undefined || rb === null || rb === '') ? item.amount : rb;
+  return Number(base) || 0;
+}
+
 function defaultPaymentAmount(item) {
-  const remaining = Number(item.remainingBalance ?? item.amount) || 0;
+  const remaining = remainingOf(item);
   if (item.kind === 'loan') return Number(item.monthlyPayment) || remaining;
   if (item.kind === 'payable' || item.kind === 'receivable') return remaining;
   if (item.kind === 'subscription') return Number(item.amount) || 0;
@@ -79,6 +89,10 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
     ['amount', 'principal', 'remainingBalance', 'monthlyPayment', 'interestRate', 'couponRate'].forEach(k => {
       if (payload[k] !== undefined && payload[k] !== '') payload[k] = Number(payload[k]);
     });
+    // Ne jamais ecrire une chaine vide pour remainingBalance : ca masquerait
+    // le montant reel a l'affichage (c'est ce qui causait le bug des
+    // creances/dettes affichees a 0).
+    if (payload.remainingBalance === '') delete payload.remainingBalance;
     onSave(payload);
   };
 
@@ -353,7 +367,7 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
     if (item.kind === 'bond' || item.kind === 'subscription') {
       updates.nextPaymentDate = advanceDate(item.nextPaymentDate, item.frequency);
     } else {
-      const currentRemaining = Number(item.remainingBalance ?? item.amount) || 0;
+      const currentRemaining = remainingOf(item);
       updates.remainingBalance = Math.max(0, currentRemaining - amt);
     }
     onUpdate(item.id, updates);
@@ -380,7 +394,7 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
     const dLeft = dueDate ? daysUntil(dueDate) : null;
     const alertFired = (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
     const nativeAmount = ['loan', 'receivable', 'payable'].includes(l.kind)
-      ? (Number(l.remainingBalance ?? l.amount) || 0)
+      ? remainingOf(l)
       : (Number(l.amount) || 0);
     const valueHTG = toHTG(nativeAmount, l.currency, rate);
     const monthlyEquivalent = l.kind === 'subscription' ? (Number(l.amount) || 0) * (FREQ_PER_YEAR[l.frequency] || 12) / 12 : 0;
@@ -476,7 +490,7 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
           <div className="acc-grid">
             {groups[kind].map(l => {
               const Icon = KIND_ICON[kind];
-              const remaining = Number(l.remainingBalance ?? l.amount) || 0;
+              const remaining = remainingOf(l);
               return (
                 <div key={l.id} className={`acc-card ${l.alertFired ? 'alert-on' : ''}`} onClick={() => { setEditing(l); setShowModal(true); }}>
                   {l.alertFired && <div className="alert-pill"><AlertTriangle size={9} /> {t('loansCredits.alertPrefix')}</div>}
