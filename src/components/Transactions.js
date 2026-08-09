@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle, Paperclip, Camera, FileText, X, Loader2 } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle, Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 import { fmtHTG, fmt, toHTG, today, CATEGORIES, getCat } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 import { uploadReceipt, deleteReceipt } from '../firestoreApi';
@@ -274,6 +274,9 @@ export default function Transactions({ transactions, accounts, settings, benefic
   const [filterType,  setFilterType]  = useState('all');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterAcc,   setFilterAcc]   = useState('');
+  const [filterCat,   setFilterCat]   = useState('');
+  const [sortBy,       setSortBy]     = useState('date');
+  const [sortDir,      setSortDir]    = useState('desc');
   const [dispCur,     setDispCur]     = useState('HTG');
   const rate = Number(settings?.usdToHtg)||130;
   const fmtC = (v) => dispCur==='USD' ? fmt(v/rate,'USD') : fmt(v,'HTG');
@@ -284,9 +287,32 @@ export default function Transactions({ transactions, accounts, settings, benefic
     if(filterType!=='all'&&t.txType!==filterType) return false;
     if(filterMonth){const d=new Date(t.date+'T00:00:00');const m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(m!==filterMonth)return false;}
     if(filterAcc&&t.debitAccount!==filterAcc&&t.creditAccount!==filterAcc) return false;
+    if(filterCat&&t.category!==filterCat) return false;
     if(search){const s=search.toLowerCase();if(!t.description?.toLowerCase().includes(s)&&!t.beneficiary?.toLowerCase().includes(s)&&!getCat(t.category).label.toLowerCase().includes(s))return false;}
     return true;
-  }),[transactions,filterType,filterMonth,filterAcc,search]);
+  }),[transactions,filterType,filterMonth,filterAcc,filterCat,search]);
+
+  // Tri : par defaut la date la plus recente d'abord (comme avant), mais on
+  // peut trier par date, compte ou statut en cliquant sur l'entete correspondant.
+  const toggleSort = (key) => {
+    if (sortBy === key) setSortDir(d => d==='asc' ? 'desc' : 'asc');
+    else { setSortBy(key); setSortDir('asc'); }
+  };
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const dir = sortDir==='asc' ? 1 : -1;
+    arr.sort((a,b) => {
+      if (sortBy==='date') return a.date.localeCompare(b.date)*dir;
+      if (sortBy==='account') {
+        const an = accMap[a.txType==='income'?a.creditAccount:a.debitAccount] || '';
+        const bn = accMap[b.txType==='income'?b.creditAccount:b.debitAccount] || '';
+        return an.localeCompare(bn)*dir;
+      }
+      if (sortBy==='status') return (a.status||'confirmed').localeCompare(b.status||'confirmed')*dir;
+      return 0;
+    });
+    return arr;
+  }, [filtered, sortBy, sortDir, accMap]);
 
   const confirmed = useMemo(()=>filtered.filter(t=>t.status==='confirmed'),[filtered]);
   const nativeSums = (txs) => ({
@@ -345,7 +371,7 @@ export default function Transactions({ transactions, accounts, settings, benefic
       </div>
 
       <div className="card mb16" style={{padding:14}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto auto',gap:10,alignItems:'center'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto auto auto',gap:10,alignItems:'center'}}>
           <div style={{position:'relative'}}>
             <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--text3)'}}/>
             <input className="fi" placeholder={t('transactions.search')} value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:32}}/>
@@ -357,13 +383,17 @@ export default function Transactions({ transactions, accounts, settings, benefic
             <option value="transfer">{t('txType.transfer')}</option>
             <option value="savings">{t('txType.savings')}</option>
           </select>
+          <select className="fs" value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{width:170}}>
+            <option value="">{t('transactions.allCategories')}</option>
+            {CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.icon} {tId('categories',c.id,c.label)}</option>)}
+          </select>
           <input className="fi" type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={{width:150}}/>
           <select className="fs" value={filterAcc} onChange={e=>setFilterAcc(e.target.value)} style={{width:160}}>
             <option value="">{t('transactions.allAccounts')}</option>
             {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
-          {(search||filterType!=='all'||filterMonth||filterAcc)&&(
-            <button className="btn btn-ghost btn-sm" onClick={()=>{setSearch('');setFilterType('all');setFilterMonth('');setFilterAcc('');}}>{t('transactions.reset')}</button>
+          {(search||filterType!=='all'||filterMonth||filterAcc||filterCat)&&(
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setSearch('');setFilterType('all');setFilterMonth('');setFilterAcc('');setFilterCat('');}}>{t('transactions.reset')}</button>
           )}
         </div>
       </div>
@@ -373,15 +403,18 @@ export default function Transactions({ transactions, accounts, settings, benefic
           <table>
             <thead>
               <tr>
-                <th>{t('transactions.col_date')}</th><th>{t('transactions.col_desc')}</th><th>{t('transactions.col_cat')}</th>
-                <th>{t('transactions.col_acc')}</th><th style={{textAlign:'right'}}>{t('transactions.col_amount')}</th>
-                <th>{t('transactions.col_status')}</th><th></th>
+                <SortableTh label={t('transactions.col_date')} sortKey="date" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort}/>
+                <th>{t('transactions.col_desc')}</th><th>{t('transactions.col_cat')}</th>
+                <SortableTh label={t('transactions.col_acc')} sortKey="account" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort}/>
+                <th style={{textAlign:'right'}}>{t('transactions.col_amount')}</th>
+                <SortableTh label={t('transactions.col_status')} sortKey="status" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort}/>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length===0
+              {sorted.length===0
                 ? <tr><td colSpan={7} style={{textAlign:'center',padding:'40px',color:'var(--text3)'}}>{t('transactions.noneFound')}</td></tr>
-                : filtered.map(tx=>{
+                : sorted.map(tx=>{
                     const catLabel=tId('categories',tx.category,getCat(tx.category).label);
                     const isIn=tx.txType==='income';
                     const StatusIcon=STATUS_ICON[tx.status]||STATUS_ICON.confirmed;
@@ -429,3 +462,15 @@ export default function Transactions({ transactions, accounts, settings, benefic
   );
 }
 function TrendingUp({size}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>}
+
+function SortableTh({ label, sortKey, sortBy, sortDir, onSort }) {
+  const active = sortBy === sortKey;
+  const Icon = active ? (sortDir === 'asc' ? ChevronUp : ChevronDown) : null;
+  return (
+    <th onClick={() => onSort(sortKey)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: active ? 'var(--text)' : undefined }}>
+        {label}{Icon && <Icon size={12} />}
+      </span>
+    </th>
+  );
+}
