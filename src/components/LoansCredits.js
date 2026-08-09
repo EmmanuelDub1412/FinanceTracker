@@ -10,6 +10,21 @@ const KINDS = ['receivable', 'payable', 'loan', 'bond', 'subscription'];
 const KIND_ICON = { receivable: ArrowDownCircle, payable: ArrowUpCircle, loan: Landmark, bond: TrendingUp, subscription: RefreshCw };
 const KIND_CLS  = { receivable: 'green', payable: 'red', loan: 'blue', bond: 'purple', subscription: 'amber' };
 const FREQ_PER_YEAR = { monthly: 12, quarterly: 4, semiannual: 2, annual: 1 };
+// Kinds ou marquer un versement retire de l'argent d'un compte (sortie).
+// Les autres (receivable, bond) en ajoutent (entree).
+const OUT_KINDS = ['loan', 'payable', 'subscription'];
+
+function defaultPaymentAmount(item) {
+  const remaining = Number(item.remainingBalance ?? item.amount) || 0;
+  if (item.kind === 'loan') return Number(item.monthlyPayment) || remaining;
+  if (item.kind === 'payable' || item.kind === 'receivable') return remaining;
+  if (item.kind === 'subscription') return Number(item.amount) || 0;
+  if (item.kind === 'bond') {
+    const perYear = FREQ_PER_YEAR[item.frequency] || 12;
+    return Math.round(((Number(item.amount) || 0) * (Number(item.couponRate) || 0) / 100 / perYear) * 100) / 100;
+  }
+  return 0;
+}
 
 // Avance une date d'une periode (mensuelle/trimestrielle/semestrielle/
 // annuelle) : utilise pour faire glisser l'echeance d'un abonnement apres
@@ -262,7 +277,54 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
   );
 }
 
-export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelete }) {
+function PaymentModal({ item, accounts, onConfirm, onClose }) {
+  const { t } = useLanguage();
+  const isOut = OUT_KINDS.includes(item.kind);
+  const [amount, setAmount] = useState(String(defaultPaymentAmount(item)));
+  const [date, setDate] = useState(today());
+  const [accountId, setAccountId] = useState('');
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-hd">
+          <div className="modal-ttl">
+            <CheckCircle2 size={18} style={{ color: 'var(--g1)' }} />
+            {t('loansCredits.m_recordPayment')}
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          <div className="frow">
+            <div className="fg">
+              <label className="fl">{t('loansCredits.m_paymentAmount')}</label>
+              <input className="fi" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
+            </div>
+            <div className="fg">
+              <label className="fl">{t('loansCredits.m_paymentDate')}</label>
+              <input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="fg">
+            <label className="fl">{isOut ? t('loansCredits.m_paymentAccountOut') : t('loansCredits.m_paymentAccountIn')}</label>
+            <select className="fs" value={accountId} onChange={e => setAccountId(e.target.value)}>
+              <option value="">{t('loansCredits.m_paymentAccountNone')}</option>
+              {(accounts || []).map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+            </select>
+          </div>
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('loansCredits.m_cancel')}</button>
+            <button className="btn btn-primary" disabled={!amount || Number(amount) <= 0} onClick={() => onConfirm({ amount, date, accountId })}>
+              {t('loansCredits.m_confirmPayment')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LoansCredits({ loans, settings, accounts = [], onAdd, onUpdate, onDelete, onAddTransaction }) {
   const { t, lang } = useLanguage();
   const rate = Number(settings?.usdToHtg) || 130;
   const [showModal, setShowModal] = useState(false);
@@ -270,24 +332,45 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
   const [newKind, setNewKind] = useState('receivable');
   const [openHistory, setOpenHistory] = useState({});
   const [dispCur, setDispCur] = useState('HTG');
+  const [payingItem, setPayingItem] = useState(null);
   const fmtC = (v) => dispCur === 'USD' ? fmt(v / rate, 'USD') : fmt(v, 'HTG');
 
   const toggleHistory = (id) => setOpenHistory(h => ({ ...h, [id]: !h[id] }));
 
-  // Marque l'echeance du jour comme payee et archive le versement dans
-  // paymentHistory. Pour un pret : reduit le solde restant. Pour un
-  // abonnement : fait glisser la prochaine echeance selon la frequence.
-  const markPaid = (item) => {
-    if (item.kind === 'subscription') {
-      const amt = Number(item.amount) || 0;
-      const history = [...(item.paymentHistory || []), { date: today(), amount: amt }];
-      onUpdate(item.id, { nextPaymentDate: advanceDate(item.nextPaymentDate, item.frequency), paymentHistory: history });
-      return;
+  // Enregistre un versement (remboursement recu/paye ou interet recu),
+  // archive le montant dans paymentHistory, met a jour le solde restant
+  // (ou fait glisser la prochaine echeance pour bond/abonnement), et si un
+  // compte a ete selectionne, cree la transaction correspondante (retrait
+  // pour ce que je paie, depot pour ce qu'on me rembourse ou les interets).
+  const confirmPayment = ({ amount, date, accountId }) => {
+    const item = payingItem;
+    if (!item) return;
+    const amt = Number(amount) || 0;
+    const paymentDate = date || today();
+    const history = [...(item.paymentHistory || []), { date: paymentDate, amount: amt, accountId: accountId || null }];
+    const updates = { paymentHistory: history };
+
+    if (item.kind === 'bond' || item.kind === 'subscription') {
+      updates.nextPaymentDate = advanceDate(item.nextPaymentDate, item.frequency);
+    } else {
+      const currentRemaining = Number(item.remainingBalance ?? item.amount) || 0;
+      updates.remainingBalance = Math.max(0, currentRemaining - amt);
     }
-    const amt = Number(item.monthlyPayment) || 0;
-    const newBalance = Math.max(0, (Number(item.remainingBalance) || 0) - amt);
-    const history = [...(item.paymentHistory || []), { date: today(), amount: amt }];
-    onUpdate(item.id, { remainingBalance: newBalance, paymentHistory: history });
+    onUpdate(item.id, updates);
+
+    if (accountId && onAddTransaction && amt > 0) {
+      const isOut = OUT_KINDS.includes(item.kind);
+      const category = isOut ? 'DEP-REM' : (item.kind === 'bond' ? 'REV-INT' : 'REV-CRE');
+      onAddTransaction({
+        date: paymentDate, description: item.name, category,
+        txType: isOut ? 'expense' : 'income',
+        amount: amt, currency: item.currency,
+        debitAccount: isOut ? accountId : '',
+        creditAccount: isOut ? '' : accountId,
+        status: 'confirmed', beneficiary: item.name,
+      });
+    }
+    setPayingItem(null);
   };
 
   const enriched = useMemo(() => loans.map(l => {
@@ -296,7 +379,9 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
     if (l.kind === 'bond' || l.kind === 'subscription') dueDate = l.nextPaymentDate || null;
     const dLeft = dueDate ? daysUntil(dueDate) : null;
     const alertFired = (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
-    const nativeAmount = l.kind === 'loan' ? (Number(l.remainingBalance) || 0) : (Number(l.amount) || 0);
+    const nativeAmount = ['loan', 'receivable', 'payable'].includes(l.kind)
+      ? (Number(l.remainingBalance ?? l.amount) || 0)
+      : (Number(l.amount) || 0);
     const valueHTG = toHTG(nativeAmount, l.currency, rate);
     const monthlyEquivalent = l.kind === 'subscription' ? (Number(l.amount) || 0) * (FREQ_PER_YEAR[l.frequency] || 12) / 12 : 0;
     return { ...l, dueDate, dLeft, alertFired, nativeAmount, valueHTG, monthlyEquivalent };
@@ -329,7 +414,13 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
   const nativeBond = nativeByCurrency(groups.bond);
   const nativeSubscriptions = nativeByCurrency(groups.subscription, 'monthlyEquivalent');
 
-  const handleSave = (data) => { editing ? onUpdate(editing.id, data) : onAdd(data); setShowModal(false); setEditing(null); };
+  const handleSave = (data) => {
+    if (!editing && ['receivable', 'payable'].includes(data.kind) && (data.remainingBalance === undefined || data.remainingBalance === '')) {
+      data = { ...data, remainingBalance: data.amount };
+    }
+    editing ? onUpdate(editing.id, data) : onAdd(data);
+    setShowModal(false); setEditing(null);
+  };
   const openNew = (kind) => { setNewKind(kind); setEditing(null); setShowModal(true); };
 
   const KPI = ({ icon: Icon, label, value, native, cls }) => (
@@ -385,6 +476,7 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
           <div className="acc-grid">
             {groups[kind].map(l => {
               const Icon = KIND_ICON[kind];
+              const remaining = Number(l.remainingBalance ?? l.amount) || 0;
               return (
                 <div key={l.id} className={`acc-card ${l.alertFired ? 'alert-on' : ''}`} onClick={() => { setEditing(l); setShowModal(true); }}>
                   {l.alertFired && <div className="alert-pill"><AlertTriangle size={9} /> {t('loansCredits.alertPrefix')}</div>}
@@ -427,7 +519,14 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                       </div>
                     </>
                   ) : (
-                    <div className={`acc-bal ${kind === 'payable' ? 'neg' : 'pos'}`}>{fmt(Number(l.amount) || 0, l.currency)}</div>
+                    <>
+                      <div className={`acc-bal ${kind === 'payable' ? 'neg' : 'pos'}`}>{fmt(remaining, l.currency)}</div>
+                      {remaining <= 0 && (l.paymentHistory || []).length > 0 && (
+                        <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--g-bg)', color: 'var(--g1)', borderRadius: 6, fontSize: 11, fontWeight: 700, display: 'inline-block' }}>
+                          {t('loansCredits.paidOffGeneric')}
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {l.dueDate && (
@@ -438,12 +537,12 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                   {l.notes && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>{l.notes}</div>}
 
                   <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                    {(kind === 'loan' ? Number(l.remainingBalance) > 0 : kind === 'subscription') && (
-                      <button className="btn btn-primary btn-sm" onClick={() => markPaid(l)}>
+                    {((['loan', 'payable', 'receivable'].includes(kind) && remaining > 0) || kind === 'bond' || kind === 'subscription') && (
+                      <button className="btn btn-primary btn-sm" onClick={() => setPayingItem(l)}>
                         <CheckCircle2 size={12} /> {t('loansCredits.markPaid')}
                       </button>
                     )}
-                    {(kind === 'loan' || kind === 'subscription') && (l.paymentHistory || []).length > 0 && (
+                    {(l.paymentHistory || []).length > 0 && (
                       <button className="btn btn-ghost btn-sm" onClick={() => toggleHistory(l.id)}>
                         <History size={12} /> {t('loansCredits.history')} ({l.paymentHistory.length})
                         {openHistory[l.id] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -457,7 +556,7 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
                     </button>
                   </div>
 
-                  {(kind === 'loan' || kind === 'subscription') && openHistory[l.id] && (l.paymentHistory || []).length > 0 && (
+                  {openHistory[l.id] && (l.paymentHistory || []).length > 0 && (
                     <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8, maxHeight: 140, overflowY: 'auto' }}>
                       {[...l.paymentHistory].reverse().map((p, i) => (
                         <div key={i} className="fb" style={{ fontSize: 11, color: 'var(--text2)', padding: '3px 0' }}>
@@ -484,6 +583,7 @@ export default function LoansCredits({ loans, settings, onAdd, onUpdate, onDelet
       )}
 
       {showModal && <LoanModal item={editing} defaultKind={newKind} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
+      {payingItem && <PaymentModal item={payingItem} accounts={accounts} onConfirm={confirmPayment} onClose={() => setPayingItem(null)} />}
     </div>
   );
 }

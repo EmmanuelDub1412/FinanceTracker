@@ -153,7 +153,10 @@ export const translations = {
       m_notes: 'Notes', m_notesPh: 'Optionnel', m_cancel: 'Annuler', m_save: 'Sauvegarder', m_create: 'Créer',
       dueOn: 'Échéance', overdue: 'En retard', dueSoon: 'Échéance proche', daysLeft: 'jours restants',
       perMonth: '/mois', perYear: '/an', remaining: 'restant', of_: 'sur', alertPrefix: 'Rappel',
-      markPaid: 'Marquer payé', history: 'Historique', paidOn: 'Payé le', paidOff: '✓ Prêt soldé',
+      markPaid: 'Marquer payé', history: 'Historique', paidOn: 'Payé le', paidOff: '✓ Prêt soldé', paidOffGeneric: '✓ Soldé',
+      m_recordPayment: 'Enregistrer un paiement', m_paymentAmount: 'Montant du versement', m_paymentDate: 'Date du versement',
+      m_paymentAccountOut: 'Compte débité', m_paymentAccountIn: 'Compte crédité',
+      m_paymentAccountNone: 'Aucun (ne pas affecter un compte)', m_confirmPayment: 'Confirmer',
     },
     settings: {
       title: 'Paramètres', subtitle: 'Configuration de FinTrack',
@@ -173,6 +176,7 @@ export const translations = {
       'DEP-SAN':'Santé / Pharmacie','DEP-EDU':'Éducation / Formation','DEP-COM':'Communication',
       'DEP-LOI':'Loisirs / Sorties','DEP-HAB':'Habillement','DEP-EEA':'Épargne / Investissement',
       'DEP-REM':'Remboursement Dettes','DEP-DIV':'Dépenses Diverses','TRF-INT':'Transfert Interne',
+      'REV-CRE':'Remboursement Reçu','REV-INT':'Intérêts / Placements',
     },
     accountTypes: { bank:'Banque', credit:'Carte Crédit', cash:'Cash', saving:'Épargne', mobile:'Monnaie Mobile' },
     goalTypes: {
@@ -330,7 +334,10 @@ export const translations = {
       m_notes: 'Notes', m_notesPh: 'Optional', m_cancel: 'Cancel', m_save: 'Save', m_create: 'Create',
       dueOn: 'Due', overdue: 'Overdue', dueSoon: 'Due soon', daysLeft: 'days left',
       perMonth: '/month', perYear: '/year', remaining: 'remaining', of_: 'of', alertPrefix: 'Reminder',
-      markPaid: 'Mark as paid', history: 'History', paidOn: 'Paid on', paidOff: '✓ Loan paid off',
+      markPaid: 'Mark as paid', history: 'History', paidOn: 'Paid on', paidOff: '✓ Loan paid off', paidOffGeneric: '✓ Settled',
+      m_recordPayment: 'Record a payment', m_paymentAmount: 'Payment amount', m_paymentDate: 'Payment date',
+      m_paymentAccountOut: 'Account debited', m_paymentAccountIn: 'Account credited',
+      m_paymentAccountNone: 'None (do not affect an account)', m_confirmPayment: 'Confirm',
     },
     settings: {
       title: 'Settings', subtitle: 'FinTrack configuration',
@@ -350,6 +357,7 @@ export const translations = {
       'DEP-SAN':'Health / Pharmacy','DEP-EDU':'Education / Training','DEP-COM':'Communication',
       'DEP-LOI':'Leisure / Outings','DEP-HAB':'Clothing','DEP-EEA':'Savings / Investment',
       'DEP-REM':'Debt Repayment','DEP-DIV':'Miscellaneous Expenses','TRF-INT':'Internal Transfer',
+      'REV-CRE':'Repayment Received','REV-INT':'Interest / Investment Income',
     },
     accountTypes: { bank:'Bank', credit:'Credit Card', cash:'Cash', saving:'Savings', mobile:'Mobile Money' },
     goalTypes: {

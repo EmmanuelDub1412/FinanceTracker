@@ -68,6 +68,8 @@ export const CATEGORIES = [
   {id:'REV-SAL',label:'Salaire / Honoraires',  type:'income',  icon:'💼'},
   {id:'REV-BIZ',label:'Revenus Affaires',       type:'income',  icon:'📊'},
   {id:'REV-DIV',label:'Autres Revenus',         type:'income',  icon:'💰'},
+  {id:'REV-CRE',label:'Remboursement Reçu',     type:'income',  icon:'🤝'},
+  {id:'REV-INT',label:'Intérêts / Placements',  type:'income',  icon:'📈'},
   {id:'DEP-ALI',label:'Alimentation',           type:'expense', icon:'🛒'},
   {id:'DEP-TRA',label:'Transport / Carburant',  type:'expense', icon:'⛽'},
   {id:'DEP-AUTO',label:'Voiture / Automobile',  type:'expense', icon:'🚗'},
