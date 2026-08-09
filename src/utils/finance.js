@@ -11,6 +11,22 @@ export const toLocalISODate = (d) => {
   return `${y}-${m}-${day}`;
 };
 export const today = () => toLocalISODate(new Date());
+
+// Lundi -> dimanche de la semaine contenant `d` (aujourd'hui par defaut).
+export const weekRange = (d = new Date()) => {
+  const day = d.getDay(); // 0=dim,1=lun,...6=sam
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diffToMonday);
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  return { start: toLocalISODate(monday), end: toLocalISODate(sunday) };
+};
+
+// 1er -> dernier jour du mois calendaire contenant `d`.
+export const monthRange = (d = new Date()) => {
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { start: toLocalISODate(first), end: toLocalISODate(last) };
+};
 export const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 export const computeBalance = (account, transactions) => {
   let balance = Number(account.initialBalance)||0;

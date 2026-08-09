@@ -16,6 +16,7 @@ export default function useFinTrack() {
   const [savings,      setSavings]      = useState([]);
   const [loans,        setLoans]        = useState([]);
   const [beneficiaries,setBeneficiaries] = useState([]);
+  const [budgets,      setBudgets]      = useState([]);
   const [settings,     setSettings]     = useState({ usdToHtg: 130 });
   const [loading,      setLoading]      = useState(false);
   const [syncing,      setSyncing]      = useState(false);
@@ -27,12 +28,13 @@ export default function useFinTrack() {
   // autres et n'efface pas les donnees deja chargees avec succes.
   const fetchAll = useCallback(async () => {
     setSyncing(true);
-    const [accsR, txsR, savsR, loansR, bensR, rateR] = await Promise.allSettled([
+    const [accsR, txsR, savsR, loansR, bensR, budsR, rateR] = await Promise.allSettled([
       db.readAll('accounts'),
       db.readAll('transactions'),
       db.readAll('savings'),
       db.readAll('loans'),
       db.readAll('beneficiaries'),
+      db.readAll('budgets'),
       db.getSetting('usdToHtg'),
     ]);
     const failures = [];
@@ -61,6 +63,11 @@ export default function useFinTrack() {
     } else {
       failures.push(bensR.reason?.message || String(bensR.reason));
     }
+    if (budsR.status === 'fulfilled') {
+      setBudgets(budsR.value.filter(b => b.id));
+    } else {
+      failures.push(budsR.reason?.message || String(budsR.reason));
+    }
     if (rateR.status === 'fulfilled') {
       if (rateR.value) setSettings(s => ({ ...s, usdToHtg: Number(rateR.value) }));
     } else {
@@ -83,7 +90,7 @@ export default function useFinTrack() {
       if (firebaseUser) {
         fetchAll();
       } else {
-        setAccounts([]); setTransactions([]); setSavings([]); setLoans([]); setBeneficiaries([]);
+        setAccounts([]); setTransactions([]); setSavings([]); setLoans([]); setBeneficiaries([]); setBudgets([]);
       }
     });
     return unsubscribe;
@@ -171,6 +178,10 @@ export default function useFinTrack() {
   // beneficiaires (liste reutilisable dans les transactions)
   const addBeneficiary    = (data) => withSync(() => db.append('beneficiaries', { ...data, id: genId() }));
   const deleteBeneficiary = (id) => withSync(() => db.delete('beneficiaries', id));
+  // budgets (plafonds hebdo/mensuels par categorie)
+  const addBudget    = (data) => withSync(() => db.append('budgets', { ...data, id: genId() }));
+  const updateBudget = (id, data) => withSync(() => db.update('budgets', id, data));
+  const deleteBudget = (id) => withSync(() => db.delete('budgets', id));
   // settings
   const saveSetting = async (key, value) => {
     await db.setSetting(key, value);
@@ -180,7 +191,7 @@ export default function useFinTrack() {
     // auth
     authState, user, gapiReady: true, login, loginWithEmail, signUp, forgotPassword, logout,
     // data
-    accounts, transactions, savings, loans, beneficiaries, settings,
+    accounts, transactions, savings, loans, beneficiaries, budgets, settings,
     loading, syncing, error, refresh,
     // CRUD
     addAccount, updateAccount, deleteAccount,
@@ -188,6 +199,7 @@ export default function useFinTrack() {
     addSaving, updateSaving, deleteSaving,
     addLoan, updateLoan, deleteLoan,
     addBeneficiary, deleteBeneficiary,
+    addBudget, updateBudget, deleteBudget,
     saveSetting,
     // helpers
     setError,

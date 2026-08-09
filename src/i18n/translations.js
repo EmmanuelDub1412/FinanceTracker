@@ -8,6 +8,7 @@ export const translations = {
   fr: {
     nav: {
       dashboard: 'Tableau de Bord', accounts: 'Mes Comptes', transactions: 'Transactions',
+      budget: 'Budget',
       loansCredits: 'Prêts & Créances',
       savings: 'Épargne & Objectifs', loan: 'Simulateur de Prêt', investment: 'Simulation de Placement',
       settings: 'Paramètres',
@@ -158,6 +159,18 @@ export const translations = {
       m_paymentAccountOut: 'Compte débité', m_paymentAccountIn: 'Compte crédité',
       m_paymentAccountNone: 'Aucun (ne pas affecter un compte)', m_confirmPayment: 'Confirmer',
     },
+    budget: {
+      title: 'Budget', subtitle: 'Surveille tes dépenses par catégorie, semaine par semaine ou mois par mois',
+      add: 'Ajouter', edit_: 'Modifier', deleteConfirm: 'Supprimer ce budget ?',
+      empty: 'Aucun budget defini', emptySub: 'Ajoute un plafond de depenses par categorie, hebdomadaire ou mensuel',
+      weekly: 'Cette semaine', monthly: 'Ce mois-ci',
+      period_weekly: 'Hebdomadaire', period_monthly: 'Mensuel',
+      totalBudgeted: 'Total budgété', totalSpent: 'Total dépensé', totalRemaining: 'Restant',
+      of_: 'sur', remaining: 'restant', over: 'Dépassé', overBy: 'Dépassé de',
+      m_titleNew: 'Ajouter un budget', m_titleEdit: 'Modifier le budget',
+      m_category: 'Catégorie', m_period: 'Période', m_amount: 'Plafond', m_currency: 'Devise',
+      m_cancel: 'Annuler', m_save: 'Sauvegarder', m_create: 'Créer',
+    },
     settings: {
       title: 'Paramètres', subtitle: 'Configuration de FinTrack',
       account: 'Compte', logout: 'Déconnecter', storage: 'Stockage des données',
@@ -189,6 +202,7 @@ export const translations = {
   en: {
     nav: {
       dashboard: 'Dashboard', accounts: 'My Accounts', transactions: 'Transactions',
+      budget: 'Budget',
       loansCredits: 'Loans & Credits',
       savings: 'Savings & Goals', loan: 'Loan Simulator', investment: 'Investment Simulator',
       settings: 'Settings',
@@ -338,6 +352,18 @@ export const translations = {
       m_recordPayment: 'Record a payment', m_paymentAmount: 'Payment amount', m_paymentDate: 'Payment date',
       m_paymentAccountOut: 'Account debited', m_paymentAccountIn: 'Account credited',
       m_paymentAccountNone: 'None (do not affect an account)', m_confirmPayment: 'Confirm',
+    },
+    budget: {
+      title: 'Budget', subtitle: 'Track your spending by category, week by week or month by month',
+      add: 'Add', edit_: 'Edit', deleteConfirm: 'Delete this budget?',
+      empty: 'No budget set yet', emptySub: 'Add a weekly or monthly spending cap per category',
+      weekly: 'This week', monthly: 'This month',
+      period_weekly: 'Weekly', period_monthly: 'Monthly',
+      totalBudgeted: 'Total budgeted', totalSpent: 'Total spent', totalRemaining: 'Remaining',
+      of_: 'of', remaining: 'remaining', over: 'Over budget', overBy: 'Over by',
+      m_titleNew: 'Add a budget', m_titleEdit: 'Edit budget',
+      m_category: 'Category', m_period: 'Period', m_amount: 'Cap', m_currency: 'Currency',
+      m_cancel: 'Cancel', m_save: 'Save', m_create: 'Create',
     },
     settings: {
       title: 'Settings', subtitle: 'FinTrack configuration',
