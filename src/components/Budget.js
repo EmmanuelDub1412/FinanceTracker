@@ -1,10 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { PieChart, Plus, Pencil, Trash2, AlertTriangle, CalendarRange, CalendarDays } from 'lucide-react';
+import {
+  PieChart, Plus, Pencil, Trash2, AlertTriangle, CalendarRange, CalendarDays,
+  ShoppingCart, Fuel, Car, Home, HeartPulse, GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package,
+} from 'lucide-react';
 import { fmt, fmtHTG, toHTG, CATEGORIES, getCat, weekRange, monthRange } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const EXPENSE_CATS = CATEGORIES.filter(c => c.type === 'expense');
 const PERIODS = ['weekly', 'monthly'];
+
+// Icones minimalistes (lucide) pour chaque categorie de depense, en
+// remplacement des emojis utilises ailleurs dans l'app.
+const CAT_ICON = {
+  'DEP-ALI': ShoppingCart, 'DEP-TRA': Fuel, 'DEP-AUTO': Car, 'DEP-LOG': Home,
+  'DEP-SAN': HeartPulse, 'DEP-EDU': GraduationCap, 'DEP-COM': Smartphone,
+  'DEP-LOI': PartyPopper, 'DEP-HAB': Shirt, 'DEP-REM': CreditCard, 'DEP-DIV': Package,
+};
+const getCatIcon = (id) => CAT_ICON[id] || Package;
 
 function BudgetModal({ item, onSave, onClose }) {
   const { t, tId } = useLanguage();
@@ -27,9 +39,25 @@ function BudgetModal({ item, onSave, onClose }) {
         <div className="fgrid">
           <div className="fg">
             <label className="fl">{t('budget.m_category')}</label>
-            <select className="fs" value={form.category} onChange={e => set('category', e.target.value)}>
-              {EXPENSE_CATS.map(c => <option key={c.id} value={c.id}>{c.icon} {tId('categories', c.id, c.label)}</option>)}
-            </select>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 6 }}>
+              {EXPENSE_CATS.map(c => {
+                const Icon = getCatIcon(c.id);
+                const active = form.category === c.id;
+                return (
+                  <button key={c.id} type="button" onClick={() => set('category', c.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px',
+                      borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                      border: `2px solid ${active ? 'var(--g1)' : 'var(--border)'}`,
+                      background: active ? 'var(--g-bg)' : 'var(--bg3)',
+                      color: active ? 'var(--g1)' : 'var(--text2)',
+                    }}>
+                    <Icon size={15} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 12.5, fontWeight: 500 }}>{tId('categories', c.id, c.label)}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="fg">
@@ -116,11 +144,12 @@ function BudgetSection({ title, RangeIcon, rangeLabel, items, dispCur, fmtC, rat
       <div className="acc-grid">
         {items.map(b => {
           const cat = getCat(b.category);
+          const CatIcon = getCatIcon(b.category);
           return (
             <div key={b.id} className={`acc-card ${b.over ? 'alert-on' : ''}`}>
               {b.over && <div className="alert-pill"><AlertTriangle size={9} /> {t('budget.over')}</div>}
               <div className="acc-hd">
-                <div className="acc-icon-wrap" style={{ background: 'var(--bg3)', fontSize: 18 }}>{cat.icon}</div>
+                <div className="acc-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}><CatIcon size={20} /></div>
                 <div>
                   <div className="acc-nm">{tId('categories', b.category, cat.label)}</div>
                   <div className="acc-tp">{t(`budget.period_${b.period}`)}</div>
