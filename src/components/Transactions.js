@@ -1,5 +1,10 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle, Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import {
+  ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle,
+  Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown,
+  Briefcase, BarChart3, Wallet, Handshake, TrendingUp, ShoppingCart, Fuel, Car, Home, HeartPulse,
+  GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw,
+} from 'lucide-react';
 import { fmtHTG, fmt, toHTG, today, CATEGORIES, getCat } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 import { uploadReceipt, deleteReceipt } from '../firestoreApi';
@@ -8,6 +13,75 @@ const TYPE_ICON = { income: ArrowDownCircle, expense: ArrowUpCircle, transfer: A
 const TYPE_CLS  = { income: 'on-income', expense: 'on-expense', transfer: 'on-transfer', savings: 'on-savings' };
 const STATUS_CLS = { confirmed: 'bg-green', pending: 'bg-amber', cancelled: 'bg-red' };
 const STATUS_ICON = { confirmed: CheckCircle, pending: Clock, cancelled: XCircle };
+
+// Icones minimalistes (lucide) pour chaque categorie, en remplacement des
+// emojis utilises auparavant dans les selecteurs de categorie.
+const CAT_ICON = {
+  'REV-SAL': Briefcase, 'REV-BIZ': BarChart3, 'REV-DIV': Wallet, 'REV-CRE': Handshake, 'REV-INT': TrendingUp,
+  'DEP-ALI': ShoppingCart, 'DEP-TRA': Fuel, 'DEP-AUTO': Car, 'DEP-LOG': Home, 'DEP-SAN': HeartPulse,
+  'DEP-EDU': GraduationCap, 'DEP-COM': Smartphone, 'DEP-LOI': PartyPopper, 'DEP-HAB': Shirt,
+  'DEP-EEA': PiggyBank, 'DEP-REM': CreditCard, 'DEP-DIV': Package, 'TRF-INT': RefreshCw,
+};
+const getCatIcon = (id) => CAT_ICON[id] || Package;
+
+// Selecteur de categorie personnalise (icone + libelle) : un <select> natif
+// ne peut pas afficher d'icones SVG dans ses options, donc on utilise un
+// menu deroulant custom pour rester coherent avec le style de l'app.
+function CategoryPicker({ options, value, onChange, allLabel, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const onDocClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+  const selected = options.find(o => o.id === value);
+  const SelIcon = selected ? getCatIcon(selected.id) : null;
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" className="fs" onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', textAlign: 'left', cursor: 'pointer' }}>
+        {SelIcon && <SelIcon size={14} style={{ flexShrink: 0, color: 'var(--text2)' }} />}
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected ? selected.label : (placeholder || allLabel)}
+        </span>
+        <ChevronDown size={13} style={{ flexShrink: 0, color: 'var(--text3)' }} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30,
+          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8,
+          boxShadow: 'var(--shadow-lg)', maxHeight: 280, overflowY: 'auto', padding: 4,
+        }}>
+          {allLabel && (
+            <div onClick={() => { onChange(''); setOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 6, cursor: 'pointer',
+                fontSize: 13, fontWeight: !value ? 700 : 500, color: !value ? 'var(--g1)' : 'var(--text)',
+                background: !value ? 'var(--g-bg)' : 'transparent',
+              }}>
+              {allLabel}
+            </div>
+          )}
+          {options.map(o => {
+            const Icon = getCatIcon(o.id);
+            const active = value === o.id;
+            return (
+              <div key={o.id} onClick={() => { onChange(o.id); setOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, cursor: 'pointer',
+                  fontSize: 13, background: active ? 'var(--g-bg)' : 'transparent', color: active ? 'var(--g1)' : 'var(--text)',
+                }}>
+                <Icon size={14} style={{ flexShrink: 0 }} /> {o.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onSave, onClose }) {
   const { t, tId } = useLanguage();
@@ -111,9 +185,10 @@ function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBen
             </div>
             <div className="fg">
               <label className="fl">{t('transactions.category')}</label>
-              <select className="fs" value={form.category} onChange={e=>set('category',e.target.value)}>
-                {filteredCats.map(c=><option key={c.id} value={c.id}>{tId('categories',c.id,c.label)}</option>)}
-              </select>
+              <CategoryPicker
+                options={filteredCats.map(c=>({id:c.id,label:tId('categories',c.id,c.label)}))}
+                value={form.category} onChange={v=>set('category',v)}
+              />
             </div>
           </div>
 
@@ -383,10 +458,12 @@ export default function Transactions({ transactions, accounts, settings, benefic
             <option value="transfer">{t('txType.transfer')}</option>
             <option value="savings">{t('txType.savings')}</option>
           </select>
-          <select className="fs" value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{width:170}}>
-            <option value="">{t('transactions.allCategories')}</option>
-            {CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.icon} {tId('categories',c.id,c.label)}</option>)}
-          </select>
+          <div style={{width:190}}>
+            <CategoryPicker
+              options={CATEGORIES.map(c=>({id:c.id,label:tId('categories',c.id,c.label)}))}
+              value={filterCat} onChange={setFilterCat} allLabel={t('transactions.allCategories')}
+            />
+          </div>
           <input className="fi" type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={{width:150}}/>
           <select className="fs" value={filterAcc} onChange={e=>setFilterAcc(e.target.value)} style={{width:160}}>
             <option value="">{t('transactions.allAccounts')}</option>
@@ -461,8 +538,6 @@ export default function Transactions({ transactions, accounts, settings, benefic
     </div>
   );
 }
-function TrendingUp({size}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>}
-
 function SortableTh({ label, sortKey, sortBy, sortDir, onSort }) {
   const active = sortBy === sortKey;
   const Icon = active ? (sortDir === 'asc' ? ChevronUp : ChevronDown) : null;
