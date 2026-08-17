@@ -5,9 +5,9 @@ import {
   Briefcase, BarChart3, Wallet, Handshake, TrendingUp, ShoppingCart, Fuel, Car, Home, HeartPulse,
   GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw, HandCoins, Landmark,
 } from 'lucide-react';
-import { fmtHTG, fmt, toHTG, today, CATEGORIES, getCat } from '../utils/finance';
+import { fmtHTG, fmt, toHTG, today, CATEGORIES, mergeCategories, findCategory } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
-import { uploadReceipt, deleteReceipt } from '../firestoreApi';
+import { uploadReceipt, deleteReceipt, genId } from '../firestoreApi';
 
 const TYPE_ICON = { income: ArrowDownCircle, expense: ArrowUpCircle, transfer: ArrowLeftRight, savings: PiggyBank };
 const TYPE_CLS  = { income: 'on-income', expense: 'on-expense', transfer: 'on-transfer', savings: 'on-savings' };
@@ -23,27 +23,97 @@ const CAT_ICON = {
   'DEP-EEA': PiggyBank, 'DEP-REM': CreditCard, 'DEP-DIV': Package, 'TRF-INT': RefreshCw,
   'REV-EMP': Landmark, 'DEP-PRE': HandCoins,
 };
-const getCatIcon = (id) => CAT_ICON[id] || Package;
+const getCatIcon = (id) => CAT_ICON[id] || null;
+// Petite palette d'emojis pour les categories personnalisees (les categories
+// integrees utilisent des icones lucide via CAT_ICON ci-dessus ; celles
+// ajoutees par l'utilisateur n'ont pas d'icone lucide dediee, donc on laisse
+// choisir un emoji simple, rendu a cote des icones lucide).
+const CUSTOM_CAT_EMOJIS = ['🏷️','💡','🎯','🛠️','🎁','🐾','⚽','🎓','✈️','🏥','🎨','📷','📖','🚿','⚡','🧩'];
+const CAT_TYPES = ['income', 'expense', 'transfer', 'savings'];
+
+// Icone a afficher pour une option de categorie : lucide pour les
+// categories integrees, sinon l'emoji choisi par l'utilisateur, sinon un
+// icone generique de repli.
+function CatOptionIcon({ opt, size = 14 }) {
+  const LucideIcon = getCatIcon(opt.id);
+  if (LucideIcon) return <LucideIcon size={size} style={{ flexShrink: 0 }} />;
+  if (opt.icon) return <span style={{ fontSize: size, lineHeight: 1, flexShrink: 0 }}>{opt.icon}</span>;
+  return <Package size={size} style={{ flexShrink: 0 }} />;
+}
+
+// Petit formulaire inline pour creer une nouvelle categorie (nom, type,
+// emoji), affiche au bas du menu deroulant de categorie.
+function CategoryCreateForm({ defaultType, onCreate, onCancel }) {
+  const { t } = useLanguage();
+  const [name, setName] = useState('');
+  const [type, setType] = useState(defaultType || 'expense');
+  const [icon, setIcon] = useState(CUSTOM_CAT_EMOJIS[0]);
+
+  const confirm = () => {
+    const label = name.trim();
+    if (!label) return;
+    onCreate({ id: genId(), label, type, icon });
+  };
+
+  return (
+    <div style={{ padding: 8, borderTop: '1px solid var(--border)', marginTop: 4 }} onClick={e => e.stopPropagation()}>
+      <input className="fi" autoFocus value={name} onChange={e => setName(e.target.value)}
+        placeholder={t('transactions.newCategoryPh')} style={{ marginBottom: 6 }}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } if (e.key === 'Escape') onCancel(); }} />
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+        {CAT_TYPES.map(id => (
+          <button key={id} type="button" onClick={() => setType(id)}
+            style={{
+              fontSize: 11, padding: '4px 8px', borderRadius: 6, cursor: 'pointer',
+              border: `1px solid ${type === id ? 'var(--g1)' : 'var(--border)'}`,
+              background: type === id ? 'var(--g-bg)' : 'var(--bg3)',
+              color: type === id ? 'var(--g1)' : 'var(--text2)',
+            }}>
+            {t(`txType.${id}`)}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+        {CUSTOM_CAT_EMOJIS.map(e => (
+          <button key={e} type="button" onClick={() => setIcon(e)}
+            style={{
+              width: 26, height: 26, borderRadius: 6, cursor: 'pointer', fontSize: 14,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: `1px solid ${icon === e ? 'var(--g1)' : 'var(--border)'}`,
+              background: icon === e ? 'var(--g-bg)' : 'var(--bg3)',
+            }}>
+            {e}
+          </button>
+        ))}
+      </div>
+      <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>{t('transactions.cancel')}</button>
+        <button type="button" className="btn btn-primary btn-sm" disabled={!name.trim()} onClick={confirm}>{t('transactions.confirm')}</button>
+      </div>
+    </div>
+  );
+}
 
 // Selecteur de categorie personnalise (icone + libelle) : un <select> natif
 // ne peut pas afficher d'icones SVG dans ses options, donc on utilise un
-// menu deroulant custom pour rester coherent avec le style de l'app.
-function CategoryPicker({ options, value, onChange, allLabel, placeholder }) {
+// menu deroulant custom pour rester coherent avec le style de l'app. Peut
+// aussi proposer une option "+ Nouvelle categorie" avec creation inline.
+function CategoryPicker({ options, value, onChange, allLabel, placeholder, onAddNew, addLabel, newCategoryType }) {
   const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
-    const onDocClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onDocClick = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setAdding(false); } };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
   const selected = options.find(o => o.id === value);
-  const SelIcon = selected ? getCatIcon(selected.id) : null;
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button type="button" className="fs" onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', textAlign: 'left', cursor: 'pointer' }}>
-        {SelIcon && <SelIcon size={14} style={{ flexShrink: 0, color: 'var(--text2)' }} />}
+        {selected && <CatOptionIcon opt={selected} />}
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selected ? selected.label : (placeholder || allLabel)}
         </span>
@@ -53,7 +123,7 @@ function CategoryPicker({ options, value, onChange, allLabel, placeholder }) {
         <div style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30,
           background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8,
-          boxShadow: 'var(--shadow-lg)', maxHeight: 280, overflowY: 'auto', padding: 4,
+          boxShadow: 'var(--shadow-lg)', maxHeight: 340, overflowY: 'auto', padding: 4,
         }}>
           {allLabel && (
             <div onClick={() => { onChange(''); setOpen(false); }}
@@ -66,7 +136,6 @@ function CategoryPicker({ options, value, onChange, allLabel, placeholder }) {
             </div>
           )}
           {options.map(o => {
-            const Icon = getCatIcon(o.id);
             const active = value === o.id;
             return (
               <div key={o.id} onClick={() => { onChange(o.id); setOpen(false); }}
@@ -74,17 +143,30 @@ function CategoryPicker({ options, value, onChange, allLabel, placeholder }) {
                   display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, cursor: 'pointer',
                   fontSize: 13, background: active ? 'var(--g-bg)' : 'transparent', color: active ? 'var(--g1)' : 'var(--text)',
                 }}>
-                <Icon size={14} style={{ flexShrink: 0 }} /> {o.label}
+                <CatOptionIcon opt={o} /> {o.label}
               </div>
             );
           })}
+          {onAddNew && !adding && (
+            <div onClick={() => setAdding(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, color: 'var(--g1)', borderTop: '1px solid var(--border)', marginTop: 2,
+              }}>
+              <Plus size={14} /> {addLabel}
+            </div>
+          )}
+          {onAddNew && adding && (
+            <CategoryCreateForm defaultType={newCategoryType} onCancel={() => setAdding(false)}
+              onCreate={(cat) => { onAddNew(cat); setAdding(false); onChange(cat.id); setOpen(false); }} />
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function TxModal({ tx, accounts, settings, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onSave, onClose }) {
+function TxModal({ tx, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onSave, onClose }) {
   const { t, tId } = useLanguage();
   const rate = Number(settings?.usdToHtg)||130;
   const [form, setForm] = useState(tx || {
@@ -137,7 +219,7 @@ function TxModal({ tx, accounts, settings, beneficiaries=[], onAddBeneficiary, o
     set('receiptUrl',''); set('receiptPath',''); set('receiptName',''); set('receiptType','');
   };
 
-  const filteredCats = CATEGORIES.filter(c => {
+  const filteredCats = mergeCategories(categories).filter(c => {
     if(form.txType==='income')   return c.type==='income';
     if(form.txType==='transfer') return c.type==='transfer';
     if(form.txType==='savings')  return c.type==='savings';
@@ -201,8 +283,9 @@ function TxModal({ tx, accounts, settings, beneficiaries=[], onAddBeneficiary, o
             <div className="fg">
               <label className="fl">{t('transactions.category')}</label>
               <CategoryPicker
-                options={filteredCats.map(c=>({id:c.id,label:tId('categories',c.id,c.label)}))}
+                options={filteredCats.map(c=>({id:c.id,label:tId('categories',c.id,c.label),icon:c.icon}))}
                 value={form.category} onChange={v=>set('category',v)}
+                onAddNew={onAddCategory} addLabel={`+ ${t('transactions.newCategory')}`} newCategoryType={form.txType}
               />
             </div>
           </div>
@@ -393,8 +476,10 @@ function TxModal({ tx, accounts, settings, beneficiaries=[], onAddBeneficiary, o
   );
 }
 
-export default function Transactions({ transactions, accounts, settings, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete }) {
+export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete }) {
   const { t, tId, lang } = useLanguage();
+  const allCats = useMemo(()=>mergeCategories(categories),[categories]);
+  const catLabelOf = (id) => tId('categories', id, findCategory(id, categories).label);
   const [showModal, setShowModal] = useState(false);
   const [editing,   setEditing]   = useState(null);
   const [search,    setSearch]    = useState('');
@@ -421,13 +506,13 @@ export default function Transactions({ transactions, accounts, settings, benefic
       const creditAmtStr=String(t.creditAmount??'');
       if(!t.description?.toLowerCase().includes(s)
         &&!t.beneficiary?.toLowerCase().includes(s)
-        &&!getCat(t.category).label.toLowerCase().includes(s)
+        &&!catLabelOf(t.category).toLowerCase().includes(s)
         &&!amtStr.includes(s)
         &&!creditAmtStr.includes(s)
       ) return false;
     }
     return true;
-  }),[transactions,filterType,filterMonth,filterAcc,filterCat,search]);
+  }),[transactions,filterType,filterMonth,filterAcc,filterCat,search,categories]);
 
   // Tri : par defaut la date la plus recente d'abord (comme avant), mais on
   // peut trier par date, compte ou statut en cliquant sur l'entete correspondant.
@@ -522,8 +607,9 @@ export default function Transactions({ transactions, accounts, settings, benefic
           </select>
           <div style={{width:190}}>
             <CategoryPicker
-              options={CATEGORIES.map(c=>({id:c.id,label:tId('categories',c.id,c.label)}))}
+              options={allCats.map(c=>({id:c.id,label:tId('categories',c.id,c.label),icon:c.icon}))}
               value={filterCat} onChange={setFilterCat} allLabel={t('transactions.allCategories')}
+              onAddNew={onAddCategory} addLabel={`+ ${t('transactions.newCategory')}`}
             />
           </div>
           <input className="fi" type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={{width:150}}/>
@@ -554,7 +640,7 @@ export default function Transactions({ transactions, accounts, settings, benefic
               {sorted.length===0
                 ? <tr><td colSpan={7} style={{textAlign:'center',padding:'40px',color:'var(--text3)'}}>{t('transactions.noneFound')}</td></tr>
                 : sorted.map(tx=>{
-                    const catLabel=tId('categories',tx.category,getCat(tx.category).label);
+                    const catLabel=catLabelOf(tx.category);
                     const isIn=tx.txType==='income';
                     const StatusIcon=STATUS_ICON[tx.status]||STATUS_ICON.confirmed;
                     const accName=accMap[tx.txType==='income'?tx.creditAccount:tx.debitAccount]||'-';
@@ -596,7 +682,7 @@ export default function Transactions({ transactions, accounts, settings, benefic
         </div>
       </div>
 
-      {showModal&&<TxModal tx={editing} accounts={accounts} settings={settings} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onDeleteBeneficiary={onDeleteBeneficiary} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
+      {showModal&&<TxModal tx={editing} accounts={accounts} settings={settings} categories={categories} onAddCategory={onAddCategory} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onDeleteBeneficiary={onDeleteBeneficiary} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
     </div>
   );
 }

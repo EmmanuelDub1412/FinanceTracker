@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './styles.css';
-import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu, HandCoins, PieChart } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu, HandCoins, PieChart, Users } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
 import { useLanguage } from './i18n/LanguageContext';
 import LoginScreen  from './components/LoginScreen';
@@ -9,6 +9,7 @@ import Dashboard     from './components/Dashboard';
 import Accounts      from './components/Accounts';
 import Transactions  from './components/Transactions';
 import Budget        from './components/Budget';
+import Beneficiaries from './components/Beneficiaries';
 import Savings       from './components/Savings';
 import LoansCredits  from './components/LoansCredits';
 import LoanSimulator from './components/LoanSimulator';
@@ -20,6 +21,7 @@ const NAV = [
   {id:'transactions', labelKey:'nav.transactions', Icon:ArrowLeftRight,  group:'main'},
   {id:'budget',       labelKey:'nav.budget',       Icon:PieChart,        group:'main'},
   {id:'loansCredits', labelKey:'nav.loansCredits', Icon:HandCoins,       group:'main'},
+  {id:'beneficiaries',labelKey:'nav.beneficiaries',Icon:Users,           group:'main'},
   {id:'savings',      labelKey:'nav.savings',      Icon:Target,          group:'planning'},
   {id:'loan',         labelKey:'nav.loan',         Icon:Calculator,      group:'planning'},
   {id:'investment',   labelKey:'nav.investment',   Icon:PiggyBank,       group:'planning'},
@@ -103,11 +105,12 @@ export default function App() {
         })}
       </nav>
       <main className="main">
-        {page==='dashboard'    && <Dashboard    accounts={ft.accounts} transactions={ft.transactions} savings={ft.savings} loans={ft.loans} settings={ft.settings} onNav={setPage}/>}
-        {page==='accounts'     && <Accounts     accounts={ft.accounts} transactions={ft.transactions} settings={ft.settings} onAdd={ft.addAccount} onUpdate={ft.updateAccount} onDelete={ft.deleteAccount}/>}
-        {page==='transactions' && <Transactions transactions={ft.transactions} accounts={ft.accounts} settings={ft.settings} beneficiaries={ft.beneficiaries} onAddBeneficiary={ft.addBeneficiary} onDeleteBeneficiary={ft.deleteBeneficiary} onAdd={ft.addTransaction} onUpdate={ft.updateTransaction} onDelete={ft.deleteTransaction}/>}
-        {page==='budget'       && <Budget       budgets={ft.budgets} transactions={ft.transactions} settings={ft.settings} onAdd={ft.addBudget} onUpdate={ft.updateBudget} onDelete={ft.deleteBudget}/>}
+        {page==='dashboard'    && <Dashboard    accounts={ft.accounts} transactions={ft.transactions} savings={ft.savings} loans={ft.loans} settings={ft.settings} categories={ft.categories} onNav={setPage}/>}
+        {page==='accounts'     && <Accounts     accounts={ft.accounts} transactions={ft.transactions} settings={ft.settings} categories={ft.categories} onAdd={ft.addAccount} onUpdate={ft.updateAccount} onDelete={ft.deleteAccount}/>}
+        {page==='transactions' && <Transactions transactions={ft.transactions} accounts={ft.accounts} settings={ft.settings} categories={ft.categories} onAddCategory={ft.addCategory} beneficiaries={ft.beneficiaries} onAddBeneficiary={ft.addBeneficiary} onDeleteBeneficiary={ft.deleteBeneficiary} onAdd={ft.addTransaction} onUpdate={ft.updateTransaction} onDelete={ft.deleteTransaction}/>}
+        {page==='budget'       && <Budget       budgets={ft.budgets} transactions={ft.transactions} settings={ft.settings} categories={ft.categories} onAddCategory={ft.addCategory} onAdd={ft.addBudget} onUpdate={ft.updateBudget} onDelete={ft.deleteBudget}/>}
         {page==='loansCredits' && <LoansCredits loans={ft.loans} accounts={ft.accounts} settings={ft.settings} onAdd={ft.addLoan} onUpdate={ft.updateLoan} onDelete={ft.deleteLoan} onAddTransaction={ft.addTransaction}/>}
+        {page==='beneficiaries'&& <Beneficiaries beneficiaries={ft.beneficiaries} onAdd={ft.addBeneficiary} onUpdate={ft.updateBeneficiary} onDelete={ft.deleteBeneficiary}/>}
         {page==='savings'      && <Savings      savings={ft.savings} onAdd={ft.addSaving} onUpdate={ft.updateSaving} onDelete={ft.deleteSaving}/>}
         {page==='loan'         && <LoanSimulator settings={ft.settings}/>}
         {page==='investment'   && <InvestmentSimulator settings={ft.settings}/>}

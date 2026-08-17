@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, Scale, Wallet, ArrowRight } from 'lucide-react';
-import { fmtHTG, fmtUSD, toHTG, computeBalance, getCat } from '../utils/finance';
+import { fmtHTG, fmtUSD, toHTG, computeBalance, findCategory } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const PIE_COLORS = ['#00C853','#2979FF','#00BFA5','#FFB300','#FF5252','#AA00FF','#FF6D00'];
 
-export default function Dashboard({ accounts, transactions, savings, loans=[], settings, onNav }) {
+export default function Dashboard({ accounts, transactions, savings, loans=[], settings, categories=[], onNav }) {
   const { t, tId, lang } = useLanguage();
   const MONTHS = t('months');
   const rate = Number(settings?.usdToHtg)||130;
@@ -76,11 +76,11 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
   const catData = useMemo(()=>{
     const map={};
     thisMonth.filter(t=>t.txType==='expense').forEach(t=>{
-      const k=tId('categories',t.category,getCat(t.category).label);
+      const k=tId('categories',t.category,findCategory(t.category,categories).label);
       map[k]=(map[k]||0)+toHTG(Number(t.amount),t.currency,rate);
     });
     return Object.entries(map).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value).slice(0,6);
-  },[thisMonth,rate,tId]);
+  },[thisMonth,rate,tId,categories]);
 
   const TT = ({active,payload,label})=>{
     if(!active||!payload?.length) return null;
@@ -185,7 +185,7 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
           {transactions.slice(0,6).length===0
             ? <div className="empty" style={{padding:'20px 0'}}><div className="empty-ico"><ArrowLeftRight size={36}/></div><div className="empty-txt">{t('dashboard.noTx')}</div></div>
             : transactions.slice(0,6).map(tx=>{
-                const catLabel=tId('categories',tx.category,getCat(tx.category).label); const isIn=tx.txType==='income';
+                const catLabel=tId('categories',tx.category,findCategory(tx.category,categories).label); const isIn=tx.txType==='income';
                 return <div key={tx.id} className="fb" style={{padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
                   <div className="flex g12">
                     <div className={`icon-circle ${isIn?'green':'red'}`}>

@@ -17,6 +17,7 @@ export default function useFinTrack() {
   const [loans,        setLoans]        = useState([]);
   const [beneficiaries,setBeneficiaries] = useState([]);
   const [budgets,      setBudgets]      = useState([]);
+  const [categories,   setCategories]   = useState([]);
   const [settings,     setSettings]     = useState({ usdToHtg: 130 });
   const [loading,      setLoading]      = useState(false);
   const [syncing,      setSyncing]      = useState(false);
@@ -28,13 +29,14 @@ export default function useFinTrack() {
   // autres et n'efface pas les donnees deja chargees avec succes.
   const fetchAll = useCallback(async () => {
     setSyncing(true);
-    const [accsR, txsR, savsR, loansR, bensR, budsR, rateR] = await Promise.allSettled([
+    const [accsR, txsR, savsR, loansR, bensR, budsR, catsR, rateR] = await Promise.allSettled([
       db.readAll('accounts'),
       db.readAll('transactions'),
       db.readAll('savings'),
       db.readAll('loans'),
       db.readAll('beneficiaries'),
       db.readAll('budgets'),
+      db.readAll('categories'),
       db.getSetting('usdToHtg'),
     ]);
     const failures = [];
@@ -68,6 +70,11 @@ export default function useFinTrack() {
     } else {
       failures.push(budsR.reason?.message || String(budsR.reason));
     }
+    if (catsR.status === 'fulfilled') {
+      setCategories(catsR.value.filter(c => c.id));
+    } else {
+      failures.push(catsR.reason?.message || String(catsR.reason));
+    }
     if (rateR.status === 'fulfilled') {
       if (rateR.value) setSettings(s => ({ ...s, usdToHtg: Number(rateR.value) }));
     } else {
@@ -90,7 +97,7 @@ export default function useFinTrack() {
       if (firebaseUser) {
         fetchAll();
       } else {
-        setAccounts([]); setTransactions([]); setSavings([]); setLoans([]); setBeneficiaries([]); setBudgets([]);
+        setAccounts([]); setTransactions([]); setSavings([]); setLoans([]); setBeneficiaries([]); setBudgets([]); setCategories([]);
       }
     });
     return unsubscribe;
@@ -146,7 +153,7 @@ export default function useFinTrack() {
   const logout = useCallback(async () => {
     await signOutUser();
     setUser(null);
-    setAccounts([]); setTransactions([]); setSavings([]); setLoans([]); setBeneficiaries([]);
+    setAccounts([]); setTransactions([]); setSavings([]); setLoans([]); setBeneficiaries([]); setBudgets([]); setCategories([]);
   }, []);
   // ── CRUD helpers ───────────────────────────────────────────────────────
   const refresh = useCallback(() => fetchAll(), [fetchAll]);
@@ -177,11 +184,16 @@ export default function useFinTrack() {
   const deleteLoan = (id) => withSync(() => db.delete('loans', id));
   // beneficiaires (liste reutilisable dans les transactions)
   const addBeneficiary    = (data) => withSync(() => db.append('beneficiaries', { ...data, id: genId() }));
+  const updateBeneficiary = (id, data) => withSync(() => db.update('beneficiaries', id, data));
   const deleteBeneficiary = (id) => withSync(() => db.delete('beneficiaries', id));
   // budgets (plafonds hebdo/mensuels par categorie)
   const addBudget    = (data) => withSync(() => db.append('budgets', { ...data, id: genId() }));
   const updateBudget = (id, data) => withSync(() => db.update('budgets', id, data));
   const deleteBudget = (id) => withSync(() => db.delete('budgets', id));
+  // categories personnalisees (en plus des categories integrees a l'app)
+  // Respecte un id deja fourni par l'appelant (ex: pour selectionner tout de
+  // suite la categorie fraichement creee dans un menu deroulant).
+  const addCategory = (data) => withSync(() => db.append('categories', { ...data, id: data.id || genId() }));
   // settings
   const saveSetting = async (key, value) => {
     await db.setSetting(key, value);
@@ -191,15 +203,16 @@ export default function useFinTrack() {
     // auth
     authState, user, gapiReady: true, login, loginWithEmail, signUp, forgotPassword, logout,
     // data
-    accounts, transactions, savings, loans, beneficiaries, budgets, settings,
+    accounts, transactions, savings, loans, beneficiaries, budgets, categories, settings,
     loading, syncing, error, refresh,
     // CRUD
     addAccount, updateAccount, deleteAccount,
     addTransaction, updateTransaction, deleteTransaction,
     addSaving, updateSaving, deleteSaving,
     addLoan, updateLoan, deleteLoan,
-    addBeneficiary, deleteBeneficiary,
+    addBeneficiary, updateBeneficiary, deleteBeneficiary,
     addBudget, updateBudget, deleteBudget,
+    addCategory,
     saveSetting,
     // helpers
     setError,

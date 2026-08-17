@@ -3,28 +3,49 @@ import {
   PieChart, Plus, Pencil, Trash2, AlertTriangle, CalendarRange, CalendarDays,
   ShoppingCart, Fuel, Car, Home, HeartPulse, GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, HandCoins,
 } from 'lucide-react';
-import { fmt, fmtHTG, toHTG, CATEGORIES, getCat, weekRange, monthRange } from '../utils/finance';
+import { fmt, fmtHTG, toHTG, CATEGORIES, mergeCategories, findCategory, weekRange, monthRange } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
+import { genId } from '../firestoreApi';
 
-const EXPENSE_CATS = CATEGORIES.filter(c => c.type === 'expense');
 const PERIODS = ['weekly', 'monthly'];
+const CUSTOM_CAT_EMOJIS = ['🏷️','💡','🎯','🛠️','🎁','🐾','⚽','🎓','✈️','🏥','🎨','📷','📖','🚿','⚡','🧩'];
 
 // Icones minimalistes (lucide) pour chaque categorie de depense, en
-// remplacement des emojis utilises ailleurs dans l'app.
+// remplacement des emojis utilises ailleurs dans l'app. Les categories
+// personnalisees n'ont pas d'icone lucide dediee : on retombe sur leur
+// emoji choisi, sinon une icone generique.
 const CAT_ICON = {
   'DEP-ALI': ShoppingCart, 'DEP-TRA': Fuel, 'DEP-AUTO': Car, 'DEP-LOG': Home,
   'DEP-SAN': HeartPulse, 'DEP-EDU': GraduationCap, 'DEP-COM': Smartphone,
   'DEP-LOI': PartyPopper, 'DEP-HAB': Shirt, 'DEP-REM': CreditCard, 'DEP-DIV': Package, 'DEP-PRE': HandCoins,
 };
-const getCatIcon = (id) => CAT_ICON[id] || Package;
+function CatIcon({ cat, size = 15, style }) {
+  const Lucide = CAT_ICON[cat.id];
+  if (Lucide) return <Lucide size={size} style={style} />;
+  if (cat.icon) return <span style={{ fontSize: size, lineHeight: 1, ...style }}>{cat.icon}</span>;
+  return <Package size={size} style={style} />;
+}
 
-function BudgetModal({ item, onSave, onClose }) {
+function BudgetModal({ item, categories, onAddCategory, onSave, onClose }) {
   const { t, tId } = useLanguage();
+  const expenseCats = useMemo(() => mergeCategories(categories).filter(c => c.type === 'expense'), [categories]);
   const [form, setForm] = useState(item || {
-    category: EXPENSE_CATS[0]?.id || '', period: 'monthly', amount: '', currency: 'HTG',
+    category: expenseCats[0]?.id || '', period: 'monthly', amount: '', currency: 'HTG',
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const canSave = form.category && Number(form.amount) > 0;
+
+  const [addingCat, setAddingCat] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState(CUSTOM_CAT_EMOJIS[0]);
+  const confirmNewCategory = () => {
+    const label = newCatName.trim();
+    if (!label) { setAddingCat(false); return; }
+    const cat = { id: genId(), label, type: 'expense', icon: newCatIcon };
+    onAddCategory?.(cat);
+    set('category', cat.id);
+    setNewCatName(''); setAddingCat(false);
+  };
 
   return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -40,8 +61,7 @@ function BudgetModal({ item, onSave, onClose }) {
           <div className="fg">
             <label className="fl">{t('budget.m_category')}</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 6 }}>
-              {EXPENSE_CATS.map(c => {
-                const Icon = getCatIcon(c.id);
+              {expenseCats.map(c => {
                 const active = form.category === c.id;
                 return (
                   <button key={c.id} type="button" onClick={() => set('category', c.id)}
@@ -52,12 +72,47 @@ function BudgetModal({ item, onSave, onClose }) {
                       background: active ? 'var(--g-bg)' : 'var(--bg3)',
                       color: active ? 'var(--g1)' : 'var(--text2)',
                     }}>
-                    <Icon size={15} style={{ flexShrink: 0 }} />
+                    <CatIcon cat={c} style={{ flexShrink: 0 }} />
                     <span style={{ fontSize: 12.5, fontWeight: 500 }}>{tId('categories', c.id, c.label)}</span>
                   </button>
                 );
               })}
+              {onAddCategory && !addingCat && (
+                <button type="button" onClick={() => setAddingCat(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px',
+                    borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                    border: '2px dashed var(--border)', background: 'transparent', color: 'var(--g1)',
+                  }}>
+                  <Plus size={15} style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>{t('budget.newCategory')}</span>
+                </button>
+              )}
             </div>
+            {addingCat && (
+              <div style={{ marginTop: 8, padding: 8, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg3)' }}>
+                <input className="fi" autoFocus value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                  placeholder={t('transactions.newCategoryPh')} style={{ marginBottom: 6 }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmNewCategory(); } if (e.key === 'Escape') setAddingCat(false); }} />
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {CUSTOM_CAT_EMOJIS.map(e => (
+                    <button key={e} type="button" onClick={() => setNewCatIcon(e)}
+                      style={{
+                        width: 26, height: 26, borderRadius: 6, cursor: 'pointer', fontSize: 14,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: `1px solid ${newCatIcon === e ? 'var(--g1)' : 'var(--border)'}`,
+                        background: newCatIcon === e ? 'var(--g-bg)' : 'var(--bg2)',
+                      }}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAddingCat(false)}>{t('budget.m_cancel')}</button>
+                  <button type="button" className="btn btn-primary btn-sm" disabled={!newCatName.trim()} onClick={confirmNewCategory}>{t('transactions.confirm')}</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="fg">
@@ -102,7 +157,7 @@ function BudgetModal({ item, onSave, onClose }) {
   );
 }
 
-function BudgetSection({ title, RangeIcon, rangeLabel, items, dispCur, fmtC, rate, t, tId, onEdit, onDelete }) {
+function BudgetSection({ title, RangeIcon, rangeLabel, items, dispCur, fmtC, rate, t, tId, categories, onEdit, onDelete }) {
   if (items.length === 0) return null;
 
   const totalBudgetedHTG = items.reduce((s, b) => s + toHTG(b.amount, b.currency, rate), 0);
@@ -143,13 +198,12 @@ function BudgetSection({ title, RangeIcon, rangeLabel, items, dispCur, fmtC, rat
 
       <div className="acc-grid">
         {items.map(b => {
-          const cat = getCat(b.category);
-          const CatIcon = getCatIcon(b.category);
+          const cat = findCategory(b.category, categories);
           return (
             <div key={b.id} className={`acc-card ${b.over ? 'alert-on' : ''}`}>
               {b.over && <div className="alert-pill"><AlertTriangle size={9} /> {t('budget.over')}</div>}
               <div className="acc-hd">
-                <div className="acc-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}><CatIcon size={20} /></div>
+                <div className="acc-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}><CatIcon cat={cat} size={20} /></div>
                 <div>
                   <div className="acc-nm">{tId('categories', b.category, cat.label)}</div>
                   <div className="acc-tp">{t(`budget.period_${b.period}`)}</div>
@@ -181,7 +235,7 @@ function BudgetSection({ title, RangeIcon, rangeLabel, items, dispCur, fmtC, rat
   );
 }
 
-export default function Budget({ budgets, transactions, settings, onAdd, onUpdate, onDelete }) {
+export default function Budget({ budgets, transactions, settings, categories=[], onAddCategory, onAdd, onUpdate, onDelete }) {
   const { t, tId, lang } = useLanguage();
   const rate = Number(settings?.usdToHtg) || 130;
   const [showModal, setShowModal] = useState(false);
@@ -248,18 +302,18 @@ export default function Budget({ budgets, transactions, settings, onAdd, onUpdat
         <>
           <BudgetSection
             title={t('budget.weekly')} RangeIcon={CalendarDays} rangeLabel={fmtRangeFr(wr, false)}
-            items={weeklyBudgets} dispCur={dispCur} fmtC={fmtC} rate={rate} t={t} tId={tId}
+            items={weeklyBudgets} dispCur={dispCur} fmtC={fmtC} rate={rate} t={t} tId={tId} categories={categories}
             onEdit={(b) => { setEditing(b); setShowModal(true); }} onDelete={onDelete}
           />
           <BudgetSection
             title={t('budget.monthly')} RangeIcon={CalendarRange} rangeLabel={fmtRangeFr(mr, true)}
-            items={monthlyBudgets} dispCur={dispCur} fmtC={fmtC} rate={rate} t={t} tId={tId}
+            items={monthlyBudgets} dispCur={dispCur} fmtC={fmtC} rate={rate} t={t} tId={tId} categories={categories}
             onEdit={(b) => { setEditing(b); setShowModal(true); }} onDelete={onDelete}
           />
         </>
       )}
 
-      {showModal && <BudgetModal item={editing} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
+      {showModal && <BudgetModal item={editing} categories={categories} onAddCategory={onAddCategory} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
     </div>
   );
 }

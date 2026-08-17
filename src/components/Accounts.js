@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Building2, CreditCard, Banknote, PiggyBank, Smartphone, Plus, Pencil, Trash2, AlertTriangle, TrendingUp, TrendingDown, Wallet, History, ArrowDownCircle, ArrowUpCircle, FileDown } from 'lucide-react';
-import { fmtHTG, fmtUSD, fmt, toHTG, computeBalance, accountHistory, getCat, ACCOUNT_TYPES } from '../utils/finance';
+import { fmtHTG, fmtUSD, fmt, toHTG, computeBalance, accountHistory, findCategory, ACCOUNT_TYPES } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const TYPE_ICONS = {
@@ -111,7 +111,7 @@ function AccountModal({ account, onSave, onClose }) {
   );
 }
 
-function AccountHistoryModal({ account, transactions, onClose }) {
+function AccountHistoryModal({ account, transactions, categories=[], onClose }) {
   const { t, tId, lang } = useLanguage();
   const allRows = useMemo(()=>accountHistory(account, transactions), [account, transactions]);
   const fmtDate = d=>{if(!d)return'';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
@@ -142,7 +142,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
 
   const rows = useMemo(()=>[openingRow, ...periodRows],[periodRows,openingBalance,fromDate]);
 
-  const catLabelOf = tx => tId('categories', tx.category, getCat(tx.category).label);
+  const catLabelOf = tx => tId('categories', tx.category, findCategory(tx.category, categories).label);
   const statusLabelOf = tx => t(`status.${tx.status||'confirmed'}`);
 
   const exportPDF = () => {
@@ -277,7 +277,7 @@ function AccountHistoryModal({ account, transactions, onClose }) {
   );
 }
 
-export default function Accounts({ accounts, transactions, settings, onAdd, onUpdate, onDelete }) {
+export default function Accounts({ accounts, transactions, settings, categories=[], onAdd, onUpdate, onDelete }) {
   const { t, tId } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing,   setEditing]   = useState(null);
@@ -453,7 +453,7 @@ export default function Accounts({ accounts, transactions, settings, onAdd, onUp
       )}
 
       {showModal&&<AccountModal account={editing} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
-      {viewingHistory&&<AccountHistoryModal account={viewingHistory} transactions={transactions} onClose={()=>setViewingHistory(null)}/>}
+      {viewingHistory&&<AccountHistoryModal account={viewingHistory} transactions={transactions} categories={categories} onClose={()=>setViewingHistory(null)}/>}
     </div>
   );
 }

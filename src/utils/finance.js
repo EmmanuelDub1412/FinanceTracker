@@ -109,6 +109,13 @@ export const CATEGORIES = [
   {id:'TRF-INT',label:'Transfert Interne',      type:'transfer',icon:'🔄'},
 ];
 export const getCat = (id) => CATEGORIES.find(c=>c.id===id)||{label:id||'-',icon:'•'};
+// Combine les categories integrees a l'app avec celles ajoutees par
+// l'utilisateur (collection Firestore "categories").
+export const mergeCategories = (custom=[]) => [...CATEGORIES, ...(custom||[])];
+// Recherche une categorie (integree ou personnalisee) par id, avec le meme
+// fallback generique que getCat quand l'id est introuvable.
+export const findCategory = (id, custom=[]) =>
+  CATEGORIES.find(c=>c.id===id) || (custom||[]).find(c=>c.id===id) || {label:id||'-',icon:'•',type:'expense'};
 export const ACCOUNT_TYPES = [
   {id:'bank',  label:'Banque',       icon:'🏦',color:'#2563EB'},
   {id:'credit',label:'Carte Crédit', icon:'💳',color:'#DC2626'},
