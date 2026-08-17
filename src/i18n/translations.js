@@ -272,6 +272,7 @@ export const translations = {
       edit: 'Edit transaction', add: 'New Transaction',
       date: 'Date', category: 'Category', description: 'Description', descPh: 'Transaction description',
       amount: 'Amount', currency: 'Currency', sourceAcc: 'Source Account', destAcc: 'Destination Account',
+      amountSent: 'Amount sent', amountReceived: 'Amount received',
       select: 'Select', selectAcc: 'Select an account',
       creditedTo: 'Credited to', debitedFrom: 'Debited from', status: 'Status',
       beneficiary: 'Beneficiary / Party', optional: 'Optional', cancel: 'Cancel',

@@ -163,8 +163,8 @@ function AccountHistoryModal({ account, transactions, onClose }) {
         <td>${fmtDate(tx.date)}</td>
         <td>${tx.description||''}</td>
         <td>${catLabelOf(tx)}</td>
-        <td style="text-align:right;color:#E53E3E">${isIn?'':fmt(Number(tx.amount),tx.currency)}</td>
-        <td style="text-align:right;color:#00A86B">${isIn?fmt(Number(tx.amount),tx.currency):''}</td>
+        <td style="text-align:right;color:#E53E3E">${isIn?'':fmt(Number(tx.nativeAmount),account.currency)}</td>
+        <td style="text-align:right;color:#00A86B">${isIn?fmt(Number(tx.nativeAmount),account.currency):''}</td>
         <td style="text-align:right;font-weight:600">${fmt(tx.runningBalance,account.currency)}</td>
         <td>${statusLabelOf(tx)}</td>
       </tr>`;
@@ -261,8 +261,8 @@ function AccountHistoryModal({ account, transactions, onClose }) {
                         </div>
                       </td>
                       <td><span style={{fontSize:12,color:'var(--text2)'}}>{catLabel}</span></td>
-                      <td className="tr tx-out" style={{fontWeight:700,fontSize:13}}>{!isIn && fmt(Number(tx.amount),tx.currency)}</td>
-                      <td className="tr tx-in" style={{fontWeight:700,fontSize:13}}>{isIn && fmt(Number(tx.amount),tx.currency)}</td>
+                      <td className="tr tx-out" style={{fontWeight:700,fontSize:13}}>{!isIn && fmt(Number(tx.nativeAmount),account.currency)}</td>
+                      <td className="tr tx-in" style={{fontWeight:700,fontSize:13}}>{isIn && fmt(Number(tx.nativeAmount),account.currency)}</td>
                       <td className="tr" style={{fontWeight:600,fontSize:13,opacity:tx.status==='confirmed'?1:.5}}>{fmt(tx.runningBalance,account.currency)}</td>
                       <td><span className={`badge ${tx.status==='confirmed'?'bg-green':tx.status==='pending'?'bg-amber':'bg-red'}`}>{statusLabelOf(tx)}</span></td>
                     </tr>
