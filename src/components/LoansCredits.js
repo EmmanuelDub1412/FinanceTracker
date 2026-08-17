@@ -266,6 +266,7 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
 // recu, remboursement effectue, mensualite payee, interet recu...) qui
 // cree une vraie transaction sur le compte choisi.
 function PaymentModal({ item, accounts, onSave, onClose }) {
+  const { t } = useLanguage();
   const isIncome = item.kind === 'receivable' || item.kind === 'bond';
   const defaultAmount =
     item.kind === 'loan' ? (item.monthlyPayment || '') :
@@ -278,11 +279,11 @@ function PaymentModal({ item, accounts, onSave, onClose }) {
   const [notes, setNotes] = useState('');
 
   const TITLE = {
-    receivable: 'Enregistrer un remboursement reçu',
-    payable: 'Enregistrer un remboursement effectué',
-    loan: 'Enregistrer une mensualité payée',
-    bond: 'Enregistrer un paiement',
-    subscription: 'Marquer comme payé',
+    receivable: t('loansCredits.pm_titleReceivable'),
+    payable: t('loansCredits.pm_titlePayable'),
+    loan: t('loansCredits.pm_titleLoan'),
+    bond: t('loansCredits.m_recordPayment'),
+    subscription: t('loansCredits.markPaid'),
   }[item.kind];
 
   const canSave = Number(amount) > 0 && account;
@@ -304,50 +305,50 @@ function PaymentModal({ item, accounts, onSave, onClose }) {
 
           {item.kind === 'bond' && (
             <div className="fg">
-              <label className="fl">Type de paiement</label>
+              <label className="fl">{t('loansCredits.pm_paymentType')}</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
                 <button type="button" className="btn btn-sm" onClick={() => setMoveType('interest')}
                   style={{ justifyContent: 'center', border: `2px solid ${moveType === 'interest' ? 'var(--g1)' : 'var(--border)'}`, background: moveType === 'interest' ? 'var(--g-bg)' : 'var(--bg3)', color: moveType === 'interest' ? 'var(--g1)' : 'var(--text2)' }}>
-                  Intérêt reçu
+                  {t('loansCredits.pm_interestReceived')}
                 </button>
                 <button type="button" className="btn btn-sm" onClick={() => setMoveType('capital')}
                   style={{ justifyContent: 'center', border: `2px solid ${moveType === 'capital' ? 'var(--g1)' : 'var(--border)'}`, background: moveType === 'capital' ? 'var(--g-bg)' : 'var(--bg3)', color: moveType === 'capital' ? 'var(--g1)' : 'var(--text2)' }}>
-                  Remboursement du capital
+                  {t('loansCredits.pm_capitalRepayment')}
                 </button>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                Un intérêt n'affecte pas le montant de l'investissement. Un remboursement de capital le réduit.
+                {t('loansCredits.pm_bondHelp')}
               </div>
             </div>
           )}
 
           <div className="frow">
             <div className="fg">
-              <label className="fl">Montant ({item.currency})</label>
+              <label className="fl">{t('loansCredits.pm_amount')} ({item.currency})</label>
               <input className="fi" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
             </div>
             <div className="fg">
-              <label className="fl">Date</label>
+              <label className="fl">{t('loansCredits.pm_date')}</label>
               <input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
 
           <div className="fg">
-            <label className="fl">{isIncome ? 'Compte crédité (argent reçu)' : 'Compte débité (argent versé)'}</label>
+            <label className="fl">{isIncome ? t('loansCredits.pm_accountCredited') : t('loansCredits.pm_accountDebited')}</label>
             <select className="fs" value={account} onChange={e => setAccount(e.target.value)}>
-              <option value="">Sélectionner un compte</option>
+              <option value="">{t('loansCredits.pm_selectAccount')}</option>
               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
 
           <div className="fg">
-            <label className="fl">Note (optionnel)</label>
-            <input className="fi" value={notes} onChange={e => setNotes(e.target.value)} placeholder="ex. reçu en espèces" />
+            <label className="fl">{t('loansCredits.pm_note')}</label>
+            <input className="fi" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('loansCredits.pm_notePh')} />
           </div>
 
           <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
-            <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button className="btn btn-primary" disabled={!canSave} onClick={handleSave}>Enregistrer</button>
+            <button className="btn btn-ghost" onClick={onClose}>{t('loansCredits.m_cancel')}</button>
+            <button className="btn btn-primary" disabled={!canSave} onClick={handleSave}>{t('loansCredits.pm_save')}</button>
           </div>
         </div>
       </div>
@@ -576,7 +577,7 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
                   <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
                     {canPay && (
                       <button className="btn btn-primary btn-sm" onClick={() => setPayingItem(l)}>
-                        <CheckCircle2 size={12} /> {kind === 'subscription' ? t('loansCredits.markPaid') : 'Enregistrer un paiement'}
+                        <CheckCircle2 size={12} /> {kind === 'subscription' ? t('loansCredits.markPaid') : t('loansCredits.m_recordPayment')}
                       </button>
                     )}
                     {(l.paymentHistory || []).length > 0 && (
@@ -600,7 +601,7 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
                           <span>
                             {new Date(p.date + 'T00:00:00').toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}
                             {p.account && accMap[p.account] ? ` · ${accMap[p.account]}` : ''}
-                            {p.type === 'capital' ? ' · Capital' : p.type === 'interest' ? ' · Intérêt' : ''}
+                            {p.type === 'capital' ? ` · ${t('loansCredits.pm_typeCapital')}` : p.type === 'interest' ? ` · ${t('loansCredits.pm_typeInterest')}` : ''}
                           </span>
                           <span style={{ fontWeight: 600, color: 'var(--g1)' }}>{fmt(p.amount, l.currency)}</span>
                         </div>
