@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import './styles.css';
-import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu, HandCoins } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu, HandCoins, PiggyBank as BudgetIcon, Users } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
+import useDueDateNotifications from './hooks/useDueDateNotifications';
 import { useLanguage } from './i18n/LanguageContext';
 import LoginScreen  from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
 import Dashboard     from './components/Dashboard';
 import Accounts      from './components/Accounts';
 import Transactions  from './components/Transactions';
+import Budget        from './components/Budget';
+import Beneficiaries from './components/Beneficiaries';
 import Savings       from './components/Savings';
 import LoansCredits  from './components/LoansCredits';
 import LoanSimulator from './components/LoanSimulator';
@@ -18,9 +21,11 @@ const NAV = [
   {id:'accounts',     labelKey:'nav.accounts',     Icon:Wallet,          group:'main'},
   {id:'transactions', labelKey:'nav.transactions', Icon:ArrowLeftRight,  group:'main'},
   {id:'loansCredits', labelKey:'nav.loansCredits', Icon:HandCoins,       group:'main'},
+  {id:'budget',       labelKey:'nav.budget',       Icon:BudgetIcon,      group:'planning'},
   {id:'savings',      labelKey:'nav.savings',      Icon:Target,          group:'planning'},
   {id:'loan',         labelKey:'nav.loan',         Icon:Calculator,      group:'planning'},
   {id:'investment',   labelKey:'nav.investment',   Icon:PiggyBank,       group:'planning'},
+  {id:'beneficiaries',labelKey:'nav.beneficiaries',Icon:Users,           group:'system'},
   {id:'settings',     labelKey:'nav.settings',     Icon:Cog,             group:'system'},
 ];
 export default function App() {
@@ -28,6 +33,7 @@ export default function App() {
   const [navOpen, setNavOpen] = useState(false);
   const ft = useFinTrack();
   const { t, lang, toggleLang } = useLanguage();
+  useDueDateNotifications(ft.loans, ft.settings, t);
   const GROUPS = {main:t('nav.group_main'), planning:t('nav.group_planning'), system:t('nav.group_system')};
   // Lien "mot de passe oublie" clique depuis l'email : Firebase redirige ici
   // avec ?mode=resetPassword&oobCode=... au lieu de sa page generique.
@@ -105,6 +111,8 @@ export default function App() {
         {page==='accounts'     && <Accounts     accounts={ft.accounts} transactions={ft.transactions} settings={ft.settings} onAdd={ft.addAccount} onUpdate={ft.updateAccount} onDelete={ft.deleteAccount}/>}
         {page==='transactions' && <Transactions transactions={ft.transactions} accounts={ft.accounts} settings={ft.settings} beneficiaries={ft.beneficiaries} onAddBeneficiary={ft.addBeneficiary} onDeleteBeneficiary={ft.deleteBeneficiary} onAdd={ft.addTransaction} onUpdate={ft.updateTransaction} onDelete={ft.deleteTransaction}/>}
         {page==='loansCredits' && <LoansCredits loans={ft.loans} accounts={ft.accounts} settings={ft.settings} onAdd={ft.addLoan} onUpdate={ft.updateLoan} onDelete={ft.deleteLoan} onAddTransaction={ft.addTransaction}/>}
+        {page==='budget'       && <Budget       budgets={ft.budgets} transactions={ft.transactions} settings={ft.settings} categories={ft.categories} onAddCategory={ft.addCategory} onAdd={ft.addBudget} onUpdate={ft.updateBudget} onDelete={ft.deleteBudget}/>}
+        {page==='beneficiaries'&& <Beneficiaries beneficiaries={ft.beneficiaries} onAdd={ft.addBeneficiary} onUpdate={ft.updateBeneficiary} onDelete={ft.deleteBeneficiary}/>}
         {page==='savings'      && <Savings      savings={ft.savings} onAdd={ft.addSaving} onUpdate={ft.updateSaving} onDelete={ft.deleteSaving}/>}
         {page==='loan'         && <LoanSimulator settings={ft.settings}/>}
         {page==='investment'   && <InvestmentSimulator settings={ft.settings}/>}

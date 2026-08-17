@@ -43,6 +43,20 @@ export const computeBalance = (account, transactions) => {
     });
   return balance;
 };
+// Solde d'un compte a une date donnee (inclus) : identique a computeBalance
+// mais ignore toute transaction posterieure a `cutoffDate` (YYYY-MM-DD).
+// Sert a reconstruire une courbe historique de la valeur nette (net worth).
+export const computeBalanceAsOf = (account, transactions, cutoffDate) => {
+  let balance = Number(account.initialBalance)||0;
+  transactions
+    .filter(t=>(t.debitAccount===account.id||t.creditAccount===account.id)&&t.status==='confirmed'&&t.date<=cutoffDate)
+    .forEach(t=>{
+      if(t.creditAccount===account.id) balance += Number(t.creditAmount ?? t.amount) || 0;
+      if(t.debitAccount===account.id)  balance -= Number(t.amount) || 0;
+    });
+  return balance;
+};
+
 // Historique complet d'un compte avec solde progressif (comme un releve
 // bancaire) : toutes les transactions (tous statuts) qui touchent ce
 // compte, triees du plus ancien au plus recent, avec le solde apres

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, Scale, Wallet, ArrowRight } from 'lucide-react';
-import { fmtHTG, fmtUSD, toHTG, computeBalance, findCategory } from '../utils/finance';
+import { fmtHTG, fmtUSD, toHTG, computeBalance, computeBalanceAsOf, monthRange, today, findCategory } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const PIE_COLORS = ['#00C853','#2979FF','#00BFA5','#FFB300','#FF5252','#AA00FF','#FF6D00'];
@@ -73,6 +73,43 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
     };
   }),[transactions,rate,now,MONTHS]);
 
+  // Valeur d'une creance/dette/pret a une date donnee : on part de sa valeur
+  // actuelle et on "annule" les remboursements enregistres apres cette date
+  // (paymentHistory), pour reconstruire son montant tel qu'il etait alors.
+  // Les abonnements n'entrent pas dans la valeur nette (comme dans loansNet).
+  const loanValueAsOf = (l, cutoffDate) => {
+    const cur = l.currency==='USD'?'USD':'HTG';
+    const rateFor = cur==='USD' ? rate : 1;
+    if (l.kind==='receivable' || l.kind==='payable') {
+      const reversed = (l.paymentHistory||[]).filter(p=>p.date>cutoffDate).reduce((s,p)=>s+(Number(p.amount)||0),0);
+      const amt = (Number(l.amount)||0) + reversed;
+      return (l.kind==='receivable'?1:-1) * amt * rateFor;
+    }
+    if (l.kind==='loan') {
+      const reversed = (l.paymentHistory||[]).filter(p=>p.date>cutoffDate).reduce((s,p)=>s+(Number(p.amount)||0),0);
+      const amt = (Number(l.remainingBalance)||0) + reversed;
+      return -amt * rateFor;
+    }
+    if (l.kind==='bond') {
+      const reversed = (l.paymentHistory||[]).filter(p=>p.date>cutoffDate&&p.type==='capital').reduce((s,p)=>s+(Number(p.amount)||0),0);
+      const amt = (Number(l.amount)||0) + reversed;
+      return amt * rateFor;
+    }
+    return 0;
+  };
+
+  // Valeur nette (comptes + creances/prets) a la fin de chacun des 6 derniers
+  // mois : reconstruction a partir des transactions et de l'historique de
+  // paiements, sans avoir besoin de snapshots stockes.
+  const netWorthData = useMemo(()=>Array.from({length:6},(_,i)=>{
+    const d=new Date(now.getFullYear(),now.getMonth()-5+i,1);
+    const { end } = monthRange(d);
+    const cutoff = i===5 ? today() : end; // mois en cours : jusqu'a aujourd'hui
+    const accountsVal = accounts.reduce((s,a)=>s+toHTG(computeBalanceAsOf(a,transactions,cutoff),a.currency,rate),0);
+    const loansVal = loans.reduce((s,l)=>s+loanValueAsOf(l,cutoff),0);
+    return { name: MONTHS[d.getMonth()], netWorth: accountsVal + loansVal };
+  }),[accounts,transactions,loans,rate,now,MONTHS]);
+
   const catData = useMemo(()=>{
     const map={};
     thisMonth.filter(t=>t.txType==='expense').forEach(t=>{
@@ -129,6 +166,20 @@ export default function Dashboard({ accounts, transactions, savings, loans=[], s
           <div className={`kpi-val ${netMonth>=0?'green':'red'}`}>{fmtC(netMonth)}</div>
           <div className="kpi-sub">{fmtHTG(nativeNetMonth.HTG)} · {fmtUSD(nativeNetMonth.USD)}</div>
           <div className="kpi-sub">{income>0?Math.round(expense/income*100):0}{t('dashboard.pctSpent')}</div>
+        </div>
+      </div>
+
+      <div className="card mb24">
+        <div className="card-hd"><div className="card-title">{t('dashboard.netWorth6')}</div></div>
+        <div style={{height:180}}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={netWorthData} margin={{top:4,right:4,left:0,bottom:0}}>
+              <XAxis dataKey="name" stroke="#3D6B50" fontSize={11} tickLine={false} axisLine={false}/>
+              <YAxis stroke="#3D6B50" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`${Math.round((dispCur==='USD'?v/rate:v)/1000)}k`}/>
+              <Tooltip content={<TT/>}/>
+              <Line type="monotone" dataKey="netWorth" name={t('dashboard.netWorth')} stroke="#00C853" strokeWidth={2} dot={{r:3}}/>
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

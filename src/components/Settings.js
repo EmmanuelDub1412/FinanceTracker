@@ -1,15 +1,28 @@
 import React, { useState } from 'react';
-import { User, Cloud, Globe, ArrowLeftRight, ShieldCheck, LogOut } from 'lucide-react';
+import { User, Cloud, Globe, ArrowLeftRight, ShieldCheck, LogOut, Bell } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Settings({ user, settings, onSave, onLogout }) {
   const { t, lang, setLang } = useLanguage();
   const [rate, setRate] = useState(settings?.usdToHtg || 130);
   const [saved, setSaved] = useState(false);
+  const notifSupported = typeof window !== 'undefined' && 'Notification' in window;
+  const [notifPerm, setNotifPerm] = useState(notifSupported ? Notification.permission : 'unsupported');
 
   const handleSave = async () => {
     await onSave('usdToHtg', Number(rate));
     setSaved(true); setTimeout(() => setSaved(false), 2000);
+  };
+
+  const toggleNotifications = async () => {
+    if (!notifSupported) return;
+    if (!settings?.notificationsEnabled) {
+      const perm = await Notification.requestPermission();
+      setNotifPerm(perm);
+      if (perm === 'granted') await onSave('notificationsEnabled', true);
+    } else {
+      await onSave('notificationsEnabled', false);
+    }
   };
 
   return (
@@ -39,6 +52,19 @@ export default function Settings({ user, settings, onSave, onLogout }) {
           <button className={`btn ${lang==='fr'?'btn-gold':'btn-ghost'}`} onClick={()=>setLang('fr')}>Français</button>
           <button className={`btn ${lang==='en'?'btn-gold':'btn-ghost'}`} onClick={()=>setLang('en')}>English</button>
         </div>
+      </div>
+      <div className="card mb16">
+        <div className="card-hd"><div className="card-title"><Bell size={16} style={{color:'var(--g1)'}}/> {t('settings.notifications')}</div></div>
+        <div style={{fontSize:13,color:'var(--text2)',marginBottom:12}}>{t('settings.notificationsText')}</div>
+        {!notifSupported ? (
+          <div style={{fontSize:12,color:'var(--text3)'}}>{t('settings.notificationsUnsupported')}</div>
+        ) : notifPerm === 'denied' ? (
+          <div style={{fontSize:12,color:'var(--text3)'}}>{t('settings.notificationsBlocked')}</div>
+        ) : (
+          <button className={`btn ${settings?.notificationsEnabled?'btn-gold':'btn-ghost'}`} onClick={toggleNotifications}>
+            <Bell size={14}/> {settings?.notificationsEnabled ? t('settings.notificationsOn') : t('settings.notificationsOff')}
+          </button>
+        )}
       </div>
       <div className="card mb16">
         <div className="card-hd"><div className="card-title"><ArrowLeftRight size={16} style={{color:'var(--g1)'}}/> {t('settings.exchangeRate')}</div></div>

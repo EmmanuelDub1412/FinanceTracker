@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle,
-  Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown,
+  Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown, Download,
   Briefcase, BarChart3, Wallet, Handshake, TrendingUp, ShoppingCart, Fuel, Car, Home, HeartPulse,
   GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw, HandCoins, Landmark,
 } from 'lucide-react';
@@ -563,6 +563,36 @@ export default function Transactions({ transactions, accounts, settings, categor
   const handleSave = (data)=>{ editing?onUpdate(editing.id,data):onAdd(data); setShowModal(false);setEditing(null); };
   const fmtDate = d=>{if(!d)return'';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
 
+  // Exporte la liste filtree/triee actuelle (celle affichee a l'ecran) en CSV,
+  // avec les libelles deja traduits (categorie, statut, type, comptes).
+  const csvCell = (v) => {
+    const s = String(v ?? '');
+    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const exportCsv = () => {
+    const header = [t('transactions.col_date'), t('transactions.col_desc'), t('transactions.col_cat'),
+      t('transactions.account'), t('transactions.col_amount'), t('transactions.currency'),
+      t('transactions.col_status'), t('transactions.beneficiary')];
+    const rows = sorted.map(tx => {
+      const accId = tx.txType === 'income' ? tx.creditAccount : tx.debitAccount;
+      return [
+        tx.date, tx.description || '', catLabelOf(tx.category),
+        accMap[accId] || '', tx.amount, tx.currency,
+        t(`status.${tx.status || 'confirmed'}`), tx.beneficiary || '',
+      ];
+    });
+    const csv = [header, ...rows].map(r => r.map(csvCell).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fintrack-transactions-${today()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <div className="ph">
@@ -573,6 +603,9 @@ export default function Transactions({ transactions, accounts, settings, categor
         <div className="flex g8">
           <button className="lang-toggle" onClick={()=>setDispCur(c=>c==='HTG'?'USD':'HTG')} title="HTG / USD">
             {dispCur}
+          </button>
+          <button className="btn btn-ghost" onClick={exportCsv} title={t('transactions.exportCsv')}>
+            <Download size={15}/> {t('transactions.exportCsv')}
           </button>
           <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}>
             <Plus size={15}/> {t('transactions.new')}
