@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw, Search,
 } from 'lucide-react';
 import { fmt, toHTG, fmtHTG, today, toLocalISODate } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -362,6 +362,7 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
   const [openHistory, setOpenHistory] = useState({});
   const [dispCur, setDispCur] = useState('HTG');
   const [payingItem, setPayingItem] = useState(null);
+  const [search, setSearch] = useState('');
   const fmtC = (v) => dispCur === 'USD' ? fmt(v / rate, 'USD') : fmt(v, 'HTG');
 
   const toggleHistory = (id) => setOpenHistory(h => ({ ...h, [id]: !h[id] }));
@@ -416,12 +417,20 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
     return { ...l, dueDate, dLeft, alertFired, nativeAmount, valueHTG, monthlyEquivalent };
   }), [loans, rate]);
 
+  // Recherche par nom/contrepartie ou notes : filtre les cartes affichees
+  // et les totaux/KPI qui en decoulent.
+  const visible = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return enriched;
+    return enriched.filter(l => (l.name || '').toLowerCase().includes(s) || (l.notes || '').toLowerCase().includes(s));
+  }, [enriched, search]);
+
   const groups = {
-    receivable: enriched.filter(l => l.kind === 'receivable'),
-    payable: enriched.filter(l => l.kind === 'payable'),
-    loan: enriched.filter(l => l.kind === 'loan'),
-    bond: enriched.filter(l => l.kind === 'bond'),
-    subscription: enriched.filter(l => l.kind === 'subscription'),
+    receivable: visible.filter(l => l.kind === 'receivable'),
+    payable: visible.filter(l => l.kind === 'payable'),
+    loan: visible.filter(l => l.kind === 'loan'),
+    bond: visible.filter(l => l.kind === 'bond'),
+    subscription: visible.filter(l => l.kind === 'subscription'),
   };
 
   // Pour chaque categorie : total combine (converti, devise au choix) +
@@ -502,6 +511,13 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
           <button className="btn btn-primary" onClick={() => openNew('receivable')}>
             <Plus size={15} /> {t('loansCredits.add')}
           </button>
+        </div>
+      </div>
+
+      <div className="card mb16" style={{ padding: 14 }}>
+        <div style={{ position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
+          <input className="fi" placeholder={t('loansCredits.search')} value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
         </div>
       </div>
 
@@ -636,6 +652,13 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
           <div className="empty-ttl">{t('loansCredits.empty')}</div>
           <div className="empty-txt" style={{ marginBottom: 16 }}>{t('loansCredits.emptySub')}</div>
           <button className="btn btn-primary" onClick={() => openNew('receivable')}><Plus size={15} /> {t('loansCredits.add')}</button>
+        </div>
+      )}
+
+      {loans.length > 0 && visible.length === 0 && (
+        <div className="empty">
+          <div className="empty-ico"><Search size={48} /></div>
+          <div className="empty-ttl">{t('loansCredits.noneFound')}</div>
         </div>
       )}
 

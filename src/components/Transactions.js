@@ -226,8 +226,15 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
     return c.type==='expense';
   });
 
+  // Le choix du compte est obligatoire : compte de debit pour une depense/
+  // epargne, compte de credit pour un revenu, les deux pour un virement.
+  const accountOk = form.txType==='transfer'
+    ? !!(form.debitAccount && form.creditAccount)
+    : (form.txType==='income' ? !!form.creditAccount : !!form.debitAccount);
+  const canSave = !!form.description && !!form.amount && accountOk;
+
   const handleSave = async () => {
-    if (!form.description || !form.amount) return;
+    if (!canSave) return;
     let payload = { ...form, amount: Number(form.amount) };
     if (crossCurrency) {
       payload.creditAmount = Number(form.creditAmount) || 0;
@@ -298,7 +305,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
           {form.txType==='transfer' && (
             <div className="frow">
               <div className="fg">
-                <label className="fl">{t('transactions.sourceAcc')}</label>
+                <label className="fl">{t('transactions.sourceAcc')} *</label>
                 <select className="fs" value={form.debitAccount} onChange={e=>{
                   const accId = e.target.value;
                   const acc = accounts.find(a=>a.id===accId);
@@ -310,7 +317,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
                 </select>
               </div>
               <div className="fg">
-                <label className="fl">{t('transactions.destAcc')}</label>
+                <label className="fl">{t('transactions.destAcc')} *</label>
                 <select className="fs" value={form.creditAccount} onChange={e=>set('creditAccount',e.target.value)}>
                   <option value="">{t('transactions.select')}</option>
                   {accounts.map(a=><option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
@@ -365,7 +372,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
 
           {form.txType!=='transfer' && (
             <div className="fg">
-              <label className="fl">{form.txType==='income'?t('transactions.creditedTo'):t('transactions.debitedFrom')}</label>
+              <label className="fl">{form.txType==='income'?t('transactions.creditedTo'):t('transactions.debitedFrom')} *</label>
               <select className="fs"
                 value={form.txType==='income'?form.creditAccount:form.debitAccount}
                 onChange={e=>form.txType==='income'?set('creditAccount',e.target.value):set('debitAccount',e.target.value)}>
@@ -466,7 +473,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
 
           <div className="flex g8" style={{justifyContent:'flex-end',marginTop:4}}>
             <button className="btn btn-ghost" onClick={onClose} disabled={uploading}>{t('transactions.cancel')}</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={uploading}>
+            <button className="btn btn-primary" onClick={handleSave} disabled={uploading || !canSave}>
               {uploading ? <><Loader2 size={14} className="spin"/> {t('transactions.uploading')}</> : (tx?t('transactions.save'):t('transactions.add_'))}
             </button>
           </div>
