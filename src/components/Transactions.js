@@ -494,6 +494,7 @@ export default function Transactions({ transactions, accounts, settings, categor
   const [filterMonth, setFilterMonth] = useState('');
   const [filterAcc,   setFilterAcc]   = useState('');
   const [filterCat,   setFilterCat]   = useState('');
+  const [filterBen,   setFilterBen]   = useState('');
   const [sortBy,       setSortBy]     = useState('date');
   const [sortDir,      setSortDir]    = useState('desc');
   const [dispCur,     setDispCur]     = useState('HTG');
@@ -507,6 +508,7 @@ export default function Transactions({ transactions, accounts, settings, categor
     if(filterMonth){const d=new Date(t.date+'T00:00:00');const m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(m!==filterMonth)return false;}
     if(filterAcc&&t.debitAccount!==filterAcc&&t.creditAccount!==filterAcc) return false;
     if(filterCat&&t.category!==filterCat) return false;
+    if(filterBen&&t.beneficiary!==filterBen) return false;
     if(search){
       const s=search.toLowerCase();
       const amtStr=String(t.amount??'');
@@ -519,7 +521,7 @@ export default function Transactions({ transactions, accounts, settings, categor
       ) return false;
     }
     return true;
-  }),[transactions,filterType,filterMonth,filterAcc,filterCat,search,categories]);
+  }),[transactions,filterType,filterMonth,filterAcc,filterCat,filterBen,search,categories]);
 
   // Tri : par defaut la date la plus recente d'abord (comme avant), mais on
   // peut trier par date, compte ou statut en cliquant sur l'entete correspondant.
@@ -600,7 +602,7 @@ export default function Transactions({ transactions, accounts, settings, categor
       </div>
 
       <div className="card mb16" style={{padding:14}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto auto auto',gap:10,alignItems:'center'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto auto auto auto',gap:10,alignItems:'center'}}>
           <div style={{position:'relative'}}>
             <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--text3)'}}/>
             <input className="fi" placeholder={t('transactions.search')} value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:32}}/>
@@ -624,8 +626,12 @@ export default function Transactions({ transactions, accounts, settings, categor
             <option value="">{t('transactions.allAccounts')}</option>
             {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
-          {(search||filterType!=='all'||filterMonth||filterAcc||filterCat)&&(
-            <button className="btn btn-ghost btn-sm" onClick={()=>{setSearch('');setFilterType('all');setFilterMonth('');setFilterAcc('');setFilterCat('');}}>{t('transactions.reset')}</button>
+          <select className="fs" value={filterBen} onChange={e=>setFilterBen(e.target.value)} style={{width:160}}>
+            <option value="">{t('transactions.allBeneficiaries')}</option>
+            {beneficiaries.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}
+          </select>
+          {(search||filterType!=='all'||filterMonth||filterAcc||filterCat||filterBen)&&(
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setSearch('');setFilterType('all');setFilterMonth('');setFilterAcc('');setFilterCat('');setFilterBen('');}}>{t('transactions.reset')}</button>
           )}
         </div>
       </div>
