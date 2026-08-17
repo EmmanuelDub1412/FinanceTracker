@@ -415,7 +415,17 @@ export default function Transactions({ transactions, accounts, settings, benefic
     if(filterMonth){const d=new Date(t.date+'T00:00:00');const m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(m!==filterMonth)return false;}
     if(filterAcc&&t.debitAccount!==filterAcc&&t.creditAccount!==filterAcc) return false;
     if(filterCat&&t.category!==filterCat) return false;
-    if(search){const s=search.toLowerCase();if(!t.description?.toLowerCase().includes(s)&&!t.beneficiary?.toLowerCase().includes(s)&&!getCat(t.category).label.toLowerCase().includes(s))return false;}
+    if(search){
+      const s=search.toLowerCase();
+      const amtStr=String(t.amount??'');
+      const creditAmtStr=String(t.creditAmount??'');
+      if(!t.description?.toLowerCase().includes(s)
+        &&!t.beneficiary?.toLowerCase().includes(s)
+        &&!getCat(t.category).label.toLowerCase().includes(s)
+        &&!amtStr.includes(s)
+        &&!creditAmtStr.includes(s)
+      ) return false;
+    }
     return true;
   }),[transactions,filterType,filterMonth,filterAcc,filterCat,search]);
 
