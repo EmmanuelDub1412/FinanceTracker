@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw, Search,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react';
 import { fmt, toHTG, fmtHTG, today, toLocalISODate } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -10,46 +10,6 @@ const KINDS = ['receivable', 'payable', 'loan', 'bond', 'subscription'];
 const KIND_ICON = { receivable: ArrowDownCircle, payable: ArrowUpCircle, loan: Landmark, bond: TrendingUp, subscription: RefreshCw };
 const KIND_CLS  = { receivable: 'green', payable: 'red', loan: 'blue', bond: 'purple', subscription: 'amber' };
 const FREQ_PER_YEAR = { monthly: 12, quarterly: 4, semiannual: 2, annual: 1 };
-// Kinds ou marquer un versement retire de l'argent d'un compte (sortie).
-// Les autres (receivable, bond) en ajoutent (entree).
-const OUT_KINDS = ['loan', 'payable', 'subscription'];
-
-// A la CREATION d'une fiche (pas au remboursement), le sens du mouvement est
-// invers : preter (receivable) ou investir (bond) fait sortir l'argent de
-// suite ; emprunter (payable) ou recevoir un pret (loan) le fait entrer.
-const CREATE_DIRECTION = { receivable: 'out', bond: 'out', payable: 'in', loan: 'in' };
-
-// Certaines fiches anciennes ont ete enregistrees avec remainingBalance a
-// chaine vide (''), qui n'est pas capte par `??` (seulement null/undefined).
-// Ce helper traite '', null et undefined comme "non defini" et retombe sur
-// le montant d'origine.
-function remainingOf(item) {
-  const rb = item.remainingBalance;
-  const base = (rb === undefined || rb === null || rb === '') ? item.amount : rb;
-  return Number(base) || 0;
-}
-
-// Convertit un montant (dans `fromCurrency`) vers la devise du compte
-// affecte, si elle differe : le compte doit toujours etre debite/credite
-// dans SA propre devise, jamais dans celle de la fiche pret/creance.
-function convertForAccount(amt, fromCurrency, account, rate) {
-  const toCurrency = account?.currency || fromCurrency;
-  if (toCurrency === fromCurrency) return { amount: amt, currency: toCurrency };
-  const converted = fromCurrency === 'USD' ? amt * rate : amt / rate;
-  return { amount: Math.round(converted * 100) / 100, currency: toCurrency };
-}
-
-function defaultPaymentAmount(item) {
-  const remaining = remainingOf(item);
-  if (item.kind === 'loan') return Number(item.monthlyPayment) || remaining;
-  if (item.kind === 'payable' || item.kind === 'receivable') return remaining;
-  if (item.kind === 'subscription') return Number(item.amount) || 0;
-  if (item.kind === 'bond') {
-    const perYear = FREQ_PER_YEAR[item.frequency] || 12;
-    return Math.round(((Number(item.amount) || 0) * (Number(item.couponRate) || 0) / 100 / perYear) * 100) / 100;
-  }
-  return 0;
-}
 
 // Avance une date d'une periode (mensuelle/trimestrielle/semestrielle/
 // annuelle) : utilise pour faire glisser l'echeance d'un abonnement apres
@@ -79,7 +39,7 @@ function daysUntil(dateStr) {
   return Math.round((d - n) / 86400000);
 }
 
-function LoanModal({ item, defaultKind, accounts, onSave, onClose }) {
+function LoanModal({ item, defaultKind, onSave, onClose }) {
   const { t } = useLanguage();
   const [form, setForm] = useState(item || {
     kind: defaultKind || 'receivable',
@@ -87,7 +47,7 @@ function LoanModal({ item, defaultKind, accounts, onSave, onClose }) {
     amount: '', dueDate: '',
     principal: '', remainingBalance: '', monthlyPayment: '', dueDay: '1', interestRate: '', startDate: today(),
     couponRate: '', frequency: 'monthly', nextPaymentDate: '', maturityDate: '',
-    alertEnabled: false, alertDays: '3', fundingAccountId: '',
+    alertEnabled: false, alertDays: '3',
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const kind = form.kind;
@@ -104,10 +64,6 @@ function LoanModal({ item, defaultKind, accounts, onSave, onClose }) {
     ['amount', 'principal', 'remainingBalance', 'monthlyPayment', 'interestRate', 'couponRate'].forEach(k => {
       if (payload[k] !== undefined && payload[k] !== '') payload[k] = Number(payload[k]);
     });
-    // Ne jamais ecrire une chaine vide pour remainingBalance : ca masquerait
-    // le montant reel a l'affichage (c'est ce qui causait le bug des
-    // creances/dettes affichees a 0).
-    if (payload.remainingBalance === '') delete payload.remainingBalance;
     onSave(payload);
   };
 
@@ -272,16 +228,6 @@ function LoanModal({ item, defaultKind, accounts, onSave, onClose }) {
             </>
           )}
 
-          {!item && CREATE_DIRECTION[kind] && (
-            <div className="fg">
-              <label className="fl">{CREATE_DIRECTION[kind] === 'out' ? t('loansCredits.m_fundingAccountOut') : t('loansCredits.m_fundingAccountIn')}</label>
-              <select className="fs" value={form.fundingAccountId || ''} onChange={e => set('fundingAccountId', e.target.value)}>
-                <option value="">{t('loansCredits.m_paymentAccountNone')}</option>
-                {(accounts || []).map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
-              </select>
-            </div>
-          )}
-
           <hr className="div" />
           <div className="tgl-row">
             <span style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -316,46 +262,92 @@ function LoanModal({ item, defaultKind, accounts, onSave, onClose }) {
   );
 }
 
-function PaymentModal({ item, accounts, onConfirm, onClose }) {
-  const { t } = useLanguage();
-  const isOut = OUT_KINDS.includes(item.kind);
-  const [amount, setAmount] = useState(String(defaultPaymentAmount(item)));
+// ── Nouveau : formulaire d'enregistrement d'un mouvement (remboursement
+// recu, remboursement effectue, mensualite payee, interet recu...) qui
+// cree une vraie transaction sur le compte choisi.
+function PaymentModal({ item, accounts, onSave, onClose }) {
+  const isIncome = item.kind === 'receivable' || item.kind === 'bond';
+  const defaultAmount =
+    item.kind === 'loan' ? (item.monthlyPayment || '') :
+    item.kind === 'subscription' ? (item.amount || '') : '';
+
+  const [amount, setAmount] = useState(defaultAmount);
   const [date, setDate] = useState(today());
-  const [accountId, setAccountId] = useState('');
+  const [account, setAccount] = useState('');
+  const [moveType, setMoveType] = useState('interest'); // uniquement pour "bond"
+  const [notes, setNotes] = useState('');
+
+  const TITLE = {
+    receivable: 'Enregistrer un remboursement reçu',
+    payable: 'Enregistrer un remboursement effectué',
+    loan: 'Enregistrer une mensualité payée',
+    bond: 'Enregistrer un paiement',
+    subscription: 'Marquer comme payé',
+  }[item.kind];
+
+  const canSave = Number(amount) > 0 && account;
+
+  const handleSave = () => {
+    if (!canSave) return;
+    onSave({ amount: Number(amount), date, account, type: moveType, notes: notes.trim() });
+  };
 
   return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-hd">
-          <div className="modal-ttl">
-            <CheckCircle2 size={18} style={{ color: 'var(--g1)' }} />
-            {t('loansCredits.m_recordPayment')}
-          </div>
+          <div className="modal-ttl"><HandCoins size={18} style={{ color: 'var(--g1)' }} /> {TITLE}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="fgrid">
+          <div style={{ fontSize: 13, color: 'var(--text2)' }}>{item.name}</div>
+
+          {item.kind === 'bond' && (
+            <div className="fg">
+              <label className="fl">Type de paiement</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
+                <button type="button" className="btn btn-sm" onClick={() => setMoveType('interest')}
+                  style={{ justifyContent: 'center', border: `2px solid ${moveType === 'interest' ? 'var(--g1)' : 'var(--border)'}`, background: moveType === 'interest' ? 'var(--g-bg)' : 'var(--bg3)', color: moveType === 'interest' ? 'var(--g1)' : 'var(--text2)' }}>
+                  Intérêt reçu
+                </button>
+                <button type="button" className="btn btn-sm" onClick={() => setMoveType('capital')}
+                  style={{ justifyContent: 'center', border: `2px solid ${moveType === 'capital' ? 'var(--g1)' : 'var(--border)'}`, background: moveType === 'capital' ? 'var(--g-bg)' : 'var(--bg3)', color: moveType === 'capital' ? 'var(--g1)' : 'var(--text2)' }}>
+                  Remboursement du capital
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                Un intérêt n'affecte pas le montant de l'investissement. Un remboursement de capital le réduit.
+              </div>
+            </div>
+          )}
+
           <div className="frow">
             <div className="fg">
-              <label className="fl">{t('loansCredits.m_paymentAmount')}</label>
+              <label className="fl">Montant ({item.currency})</label>
               <input className="fi" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
             </div>
             <div className="fg">
-              <label className="fl">{t('loansCredits.m_paymentDate')}</label>
+              <label className="fl">Date</label>
               <input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
+
           <div className="fg">
-            <label className="fl">{isOut ? t('loansCredits.m_paymentAccountOut') : t('loansCredits.m_paymentAccountIn')}</label>
-            <select className="fs" value={accountId} onChange={e => setAccountId(e.target.value)}>
-              <option value="">{t('loansCredits.m_paymentAccountNone')}</option>
-              {(accounts || []).map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+            <label className="fl">{isIncome ? 'Compte crédité (argent reçu)' : 'Compte débité (argent versé)'}</label>
+            <select className="fs" value={account} onChange={e => setAccount(e.target.value)}>
+              <option value="">Sélectionner un compte</option>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
+
+          <div className="fg">
+            <label className="fl">Note (optionnel)</label>
+            <input className="fi" value={notes} onChange={e => setNotes(e.target.value)} placeholder="ex. reçu en espèces" />
+          </div>
+
           <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
-            <button className="btn btn-ghost" onClick={onClose}>{t('loansCredits.m_cancel')}</button>
-            <button className="btn btn-primary" disabled={!amount || Number(amount) <= 0} onClick={() => onConfirm({ amount, date, accountId })}>
-              {t('loansCredits.m_confirmPayment')}
-            </button>
+            <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+            <button className="btn btn-primary" disabled={!canSave} onClick={handleSave}>Enregistrer</button>
           </div>
         </div>
       </div>
@@ -363,54 +355,61 @@ function PaymentModal({ item, accounts, onConfirm, onClose }) {
   );
 }
 
-export default function LoansCredits({ loans, settings, accounts = [], onAdd, onUpdate, onDelete, onAddTransaction }) {
+export default function LoansCredits({ loans, accounts = [], settings, onAdd, onUpdate, onDelete, onAddTransaction }) {
   const { t, lang } = useLanguage();
   const rate = Number(settings?.usdToHtg) || 130;
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [newKind, setNewKind] = useState('receivable');
+  const [payingItem, setPayingItem] = useState(null);
   const [openHistory, setOpenHistory] = useState({});
   const [dispCur, setDispCur] = useState('HTG');
-  const [payingItem, setPayingItem] = useState(null);
-  const [search, setSearch] = useState('');
   const fmtC = (v) => dispCur === 'USD' ? fmt(v / rate, 'USD') : fmt(v, 'HTG');
+
+  const accMap = useMemo(() => Object.fromEntries(accounts.map(a => [a.id, a.name])), [accounts]);
 
   const toggleHistory = (id) => setOpenHistory(h => ({ ...h, [id]: !h[id] }));
 
-  // Enregistre un versement (remboursement recu/paye ou interet recu),
-  // archive le montant dans paymentHistory, met a jour le solde restant
-  // (ou fait glisser la prochaine echeance pour bond/abonnement), et si un
-  // compte a ete selectionne, cree la transaction correspondante (retrait
-  // pour ce que je paie, depot pour ce qu'on me rembourse ou les interets).
-  const confirmPayment = ({ amount, date, accountId }) => {
-    const item = payingItem;
-    if (!item) return;
-    const amt = Number(amount) || 0;
-    const paymentDate = date || today();
-    const history = [...(item.paymentHistory || []), { date: paymentDate, amount: amt, accountId: accountId || null }];
-    const updates = { paymentHistory: history };
+  // Enregistre un mouvement (remboursement recu/effectue, mensualite,
+  // interet...) : cree une vraie transaction sur le compte choisi (retrait
+  // ou depot selon le sens), puis met a jour le solde restant du pret/de
+  // la creance/dette et archive le mouvement dans paymentHistory.
+  const recordPayment = (item, { amount, date, account, type, notes }) => {
+    const isIncome = item.kind === 'receivable' || item.kind === 'bond';
+    const category = isIncome ? 'REV-DIV' : (item.kind === 'subscription' ? 'DEP-DIV' : 'DEP-REM');
+    const desc =
+      item.kind === 'receivable' ? `Remboursement reçu : ${item.name}` :
+      item.kind === 'payable'    ? `Remboursement effectué : ${item.name}` :
+      item.kind === 'loan'       ? `Mensualité payée : ${item.name}` :
+      item.kind === 'bond'       ? (type === 'capital' ? `Rachat capital : ${item.name}` : `Intérêts reçus : ${item.name}`) :
+      `Paiement : ${item.name}`;
 
-    if (item.kind === 'bond' || item.kind === 'subscription') {
-      updates.nextPaymentDate = advanceDate(item.nextPaymentDate, item.frequency);
-    } else {
-      const currentRemaining = remainingOf(item);
-      updates.remainingBalance = Math.max(0, currentRemaining - amt);
-    }
-    onUpdate(item.id, updates);
+    onAddTransaction?.({
+      date, description: desc, category,
+      txType: isIncome ? 'income' : 'expense',
+      debitAccount: isIncome ? '' : account,
+      creditAccount: isIncome ? account : '',
+      amount, currency: item.currency,
+      status: 'confirmed', beneficiary: '', notes: notes || '',
+    });
 
-    if (accountId && onAddTransaction && amt > 0) {
-      const isOut = OUT_KINDS.includes(item.kind);
-      const category = isOut ? 'DEP-REM' : (item.kind === 'bond' ? 'REV-INT' : 'REV-CRE');
-      const account = accounts.find(a => a.id === accountId);
-      const { amount: convertedAmt, currency: accCurrency } = convertForAccount(amt, item.currency, account, rate);
-      onAddTransaction({
-        date: paymentDate, description: item.name, category,
-        txType: isOut ? 'expense' : 'income',
-        amount: convertedAmt, currency: accCurrency,
-        debitAccount: isOut ? accountId : '',
-        creditAccount: isOut ? '' : accountId,
-        status: 'confirmed', beneficiary: item.name,
-      });
+    const history = [...(item.paymentHistory || []), { date, amount, account, type: item.kind === 'bond' ? type : undefined }];
+
+    if (item.kind === 'subscription') {
+      onUpdate(item.id, { nextPaymentDate: advanceDate(item.nextPaymentDate, item.frequency), paymentHistory: history });
+    } else if (item.kind === 'loan') {
+      const newBalance = Math.max(0, (Number(item.remainingBalance) || 0) - amount);
+      onUpdate(item.id, { remainingBalance: newBalance, paymentHistory: history });
+    } else if (item.kind === 'receivable' || item.kind === 'payable') {
+      const newAmount = Math.max(0, (Number(item.amount) || 0) - amount);
+      onUpdate(item.id, { amount: newAmount, paymentHistory: history });
+    } else if (item.kind === 'bond') {
+      if (type === 'capital') {
+        const newAmount = Math.max(0, (Number(item.amount) || 0) - amount);
+        onUpdate(item.id, { amount: newAmount, paymentHistory: history });
+      } else {
+        onUpdate(item.id, { paymentHistory: history });
+      }
     }
     setPayingItem(null);
   };
@@ -421,28 +420,18 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
     if (l.kind === 'bond' || l.kind === 'subscription') dueDate = l.nextPaymentDate || null;
     const dLeft = dueDate ? daysUntil(dueDate) : null;
     const alertFired = (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
-    const nativeAmount = ['loan', 'receivable', 'payable'].includes(l.kind)
-      ? remainingOf(l)
-      : (Number(l.amount) || 0);
+    const nativeAmount = l.kind === 'loan' ? (Number(l.remainingBalance) || 0) : (Number(l.amount) || 0);
     const valueHTG = toHTG(nativeAmount, l.currency, rate);
     const monthlyEquivalent = l.kind === 'subscription' ? (Number(l.amount) || 0) * (FREQ_PER_YEAR[l.frequency] || 12) / 12 : 0;
     return { ...l, dueDate, dLeft, alertFired, nativeAmount, valueHTG, monthlyEquivalent };
   }), [loans, rate]);
 
-  // Recherche par nom/contrepartie ou notes : filtre les cartes affichees
-  // et les totaux/KPI qui en decoulent.
-  const visible = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    if (!s) return enriched;
-    return enriched.filter(l => (l.name || '').toLowerCase().includes(s) || (l.notes || '').toLowerCase().includes(s));
-  }, [enriched, search]);
-
   const groups = {
-    receivable: visible.filter(l => l.kind === 'receivable'),
-    payable: visible.filter(l => l.kind === 'payable'),
-    loan: visible.filter(l => l.kind === 'loan'),
-    bond: visible.filter(l => l.kind === 'bond'),
-    subscription: visible.filter(l => l.kind === 'subscription'),
+    receivable: enriched.filter(l => l.kind === 'receivable'),
+    payable: enriched.filter(l => l.kind === 'payable'),
+    loan: enriched.filter(l => l.kind === 'loan'),
+    bond: enriched.filter(l => l.kind === 'bond'),
+    subscription: enriched.filter(l => l.kind === 'subscription'),
   };
 
   // Pour chaque categorie : total combine (converti, devise au choix) +
@@ -464,43 +453,7 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
   const nativeBond = nativeByCurrency(groups.bond);
   const nativeSubscriptions = nativeByCurrency(groups.subscription, 'monthlyEquivalent');
 
-  const handleSave = (data) => {
-    if (!editing && ['receivable', 'payable'].includes(data.kind) && (data.remainingBalance === undefined || data.remainingBalance === '')) {
-      data = { ...data, remainingBalance: data.amount };
-    }
-    // fundingAccountId n'existe que le temps du formulaire : sert a creer la
-    // transaction d'impact ci-dessous, jamais persiste sur la fiche.
-    const fundingAccountId = data.fundingAccountId;
-    if ('fundingAccountId' in data) {
-      const { fundingAccountId: _drop, ...rest } = data;
-      data = rest;
-    }
-
-    editing ? onUpdate(editing.id, data) : onAdd(data);
-
-    if (!editing && fundingAccountId && onAddTransaction) {
-      const direction = CREATE_DIRECTION[data.kind];
-      if (direction) {
-        const amt = data.kind === 'loan' ? (Number(data.remainingBalance) || 0) : (Number(data.amount) || 0);
-        if (amt > 0) {
-          const isOut = direction === 'out';
-          const category = data.kind === 'bond' ? 'DEP-EEA' : (isOut ? 'DEP-PRE' : 'REV-EMP');
-          const account = accounts.find(a => a.id === fundingAccountId);
-          const { amount: convertedAmt, currency: accCurrency } = convertForAccount(amt, data.currency, account, rate);
-          onAddTransaction({
-            date: data.startDate || today(), description: data.name, category,
-            txType: data.kind === 'bond' ? 'savings' : (isOut ? 'expense' : 'income'),
-            amount: convertedAmt, currency: accCurrency,
-            debitAccount: isOut ? fundingAccountId : '',
-            creditAccount: isOut ? '' : fundingAccountId,
-            status: 'confirmed', beneficiary: data.name,
-          });
-        }
-      }
-    }
-
-    setShowModal(false); setEditing(null);
-  };
+  const handleSave = (data) => { editing ? onUpdate(editing.id, data) : onAdd(data); setShowModal(false); setEditing(null); };
   const openNew = (kind) => { setNewKind(kind); setEditing(null); setShowModal(true); };
 
   const KPI = ({ icon: Icon, label, value, native, cls }) => (
@@ -525,13 +478,6 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
           <button className="btn btn-primary" onClick={() => openNew('receivable')}>
             <Plus size={15} /> {t('loansCredits.add')}
           </button>
-        </div>
-      </div>
-
-      <div className="card mb16" style={{ padding: 14 }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
-          <input className="fi" placeholder={t('loansCredits.search')} value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
         </div>
       </div>
 
@@ -563,7 +509,11 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
           <div className="acc-grid">
             {groups[kind].map(l => {
               const Icon = KIND_ICON[kind];
-              const remaining = remainingOf(l);
+              const canPay =
+                kind === 'loan' ? Number(l.remainingBalance) > 0 :
+                kind === 'subscription' ? true :
+                kind === 'bond' ? true :
+                Number(l.amount) > 0; // receivable / payable
               return (
                 <div key={l.id} className={`acc-card ${l.alertFired ? 'alert-on' : ''}`} onClick={() => { setEditing(l); setShowModal(true); }}>
                   {l.alertFired && <div className="alert-pill"><AlertTriangle size={9} /> {t('loansCredits.alertPrefix')}</div>}
@@ -607,10 +557,10 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
                     </>
                   ) : (
                     <>
-                      <div className={`acc-bal ${kind === 'payable' ? 'neg' : 'pos'}`}>{fmt(remaining, l.currency)}</div>
-                      {remaining <= 0 && (l.paymentHistory || []).length > 0 && (
+                      <div className={`acc-bal ${kind === 'payable' ? 'neg' : 'pos'}`}>{fmt(Number(l.amount) || 0, l.currency)}</div>
+                      {Number(l.amount) <= 0 && (l.paymentHistory || []).length > 0 && (
                         <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--g-bg)', color: 'var(--g1)', borderRadius: 6, fontSize: 11, fontWeight: 700, display: 'inline-block' }}>
-                          {t('loansCredits.paidOffGeneric')}
+                          {t('loansCredits.paidOff')}
                         </div>
                       )}
                     </>
@@ -624,9 +574,9 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
                   {l.notes && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>{l.notes}</div>}
 
                   <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                    {((['loan', 'payable', 'receivable'].includes(kind) && remaining > 0) || kind === 'bond' || kind === 'subscription') && (
+                    {canPay && (
                       <button className="btn btn-primary btn-sm" onClick={() => setPayingItem(l)}>
-                        <CheckCircle2 size={12} /> {t('loansCredits.m_recordPayment')}
+                        <CheckCircle2 size={12} /> {kind === 'subscription' ? t('loansCredits.markPaid') : 'Enregistrer un paiement'}
                       </button>
                     )}
                     {(l.paymentHistory || []).length > 0 && (
@@ -647,7 +597,11 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
                     <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8, maxHeight: 140, overflowY: 'auto' }}>
                       {[...l.paymentHistory].reverse().map((p, i) => (
                         <div key={i} className="fb" style={{ fontSize: 11, color: 'var(--text2)', padding: '3px 0' }}>
-                          <span>{t('loansCredits.paidOn')} {new Date(p.date+'T00:00:00').toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
+                          <span>
+                            {new Date(p.date + 'T00:00:00').toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}
+                            {p.account && accMap[p.account] ? ` · ${accMap[p.account]}` : ''}
+                            {p.type === 'capital' ? ' · Capital' : p.type === 'interest' ? ' · Intérêt' : ''}
+                          </span>
                           <span style={{ fontWeight: 600, color: 'var(--g1)' }}>{fmt(p.amount, l.currency)}</span>
                         </div>
                       ))}
@@ -669,19 +623,8 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
         </div>
       )}
 
-      {loans.length > 0 && visible.length === 0 && (
-        <div className="empty">
-          <div className="empty-ico"><Search size={48} /></div>
-          <div className="empty-ttl">{t('loansCredits.noneFound')}</div>
-        </div>
-      )}
-
-      {showModal && <LoanModal item={editing} defaultKind={newKind} accounts={accounts} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
-      {payingItem && <PaymentModal item={payingItem} accounts={accounts} onConfirm={confirmPayment} onClose={() => setPayingItem(null)} />}
-
-      <button className="fab-add" onClick={() => openNew('receivable')} title={t('loansCredits.add')} aria-label={t('loansCredits.add')}>
-        <Plus size={22} />
-      </button>
+      {showModal && <LoanModal item={editing} defaultKind={newKind} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
+      {payingItem && <PaymentModal item={payingItem} accounts={accounts} onSave={(data) => recordPayment(payingItem, data)} onClose={() => setPayingItem(null)} />}
     </div>
   );
 }

@@ -15,7 +15,7 @@ import {
 import {
   ref as storageRef, uploadBytes, getDownloadURL, deleteObject,
 } from 'firebase/storage';
-import { auth, googleProvider, db as firestore, storage } from './firebase';
+import { auth, googleProvider, db as firestore, storage, ensureStorageAuth } from './firebase';
 
 // ── ID generation (identique a l'ancienne version) ─────────────────────────
 export const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -122,11 +122,16 @@ class FirestoreDB {
 export const db = new FirestoreDB();
 
 // ── Pieces jointes (recu/facture) sur Firebase Storage ──────────────────────
-// Rangees sous users/{uid}/receipts/{nom-unique} pour rester isolees par
-// utilisateur, comme les collections Firestore.
+// Rangees sous users/{uid}/receipts/{nom-unique}. Le {uid} utilise ici est
+// celui de l'utilisateur connecte sur fintrak-af1ce (auth.currentUser),
+// gardee pour organiser les fichiers par personne — mais la securite reelle
+// du bucket lumivolt-database repose sur la session anonyme dediee
+// (ensureStorageAuth), pas sur cet uid, puisque les deux projets sont
+// distincts. Voir firebase.js pour le detail.
 export const uploadReceipt = async (file) => {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Utilisateur non connecte');
+  await ensureStorageAuth();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const path = `users/${uid}/receipts/${Date.now()}-${safeName}`;
   const ref = storageRef(storage, path);
@@ -138,6 +143,7 @@ export const uploadReceipt = async (file) => {
 export const deleteReceipt = async (path) => {
   if (!path) return;
   try {
+    await ensureStorageAuth();
     await deleteObject(storageRef(storage, path));
   } catch (e) {
     // Fichier deja supprime ou permission manquante : on ignore, ce n'est
