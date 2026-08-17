@@ -696,6 +696,10 @@ export default function Transactions({ transactions, accounts, settings, categor
       </div>
 
       {showModal&&<TxModal tx={editing} accounts={accounts} settings={settings} categories={categories} onAddCategory={onAddCategory} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onDeleteBeneficiary={onDeleteBeneficiary} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
+
+      <button className="fab-add" onClick={()=>{setEditing(null);setShowModal(true);}} title={t('transactions.new')} aria-label={t('transactions.new')}>
+        <Plus size={22}/>
+      </button>
     </div>
   );
 }

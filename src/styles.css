@@ -300,6 +300,19 @@ input:checked+.tgl-s:before{transform:translateX(18px)}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
+/* ── Bouton flottant "ajouter" (toujours accessible sans remonter en haut) ── */
+.fab-add{
+  position:fixed;right:28px;bottom:28px;z-index:120;
+  width:52px;height:52px;border-radius:50%;
+  background:var(--g1);color:#fff;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-lg);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.fab-add:hover{transform:scale(1.07);box-shadow:0 14px 40px rgba(0,0,0,.2)}
+.fab-add:active{transform:scale(.97)}
+@media(max-width:768px){.fab-add{right:16px;bottom:16px;width:48px;height:48px}}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .shell{grid-template-columns:1fr}

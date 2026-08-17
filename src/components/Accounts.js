@@ -454,6 +454,10 @@ export default function Accounts({ accounts, transactions, settings, categories=
 
       {showModal&&<AccountModal account={editing} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
       {viewingHistory&&<AccountHistoryModal account={viewingHistory} transactions={transactions} categories={categories} onClose={()=>setViewingHistory(null)}/>}
+
+      <button className="fab-add" onClick={()=>{setEditing(null);setShowModal(true);}} title={t('accounts.add')} aria-label={t('accounts.add')}>
+        <Plus size={22}/>
+      </button>
     </div>
   );
 }

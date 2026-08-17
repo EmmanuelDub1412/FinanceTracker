@@ -678,6 +678,10 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
 
       {showModal && <LoanModal item={editing} defaultKind={newKind} accounts={accounts} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
       {payingItem && <PaymentModal item={payingItem} accounts={accounts} onConfirm={confirmPayment} onClose={() => setPayingItem(null)} />}
+
+      <button className="fab-add" onClick={() => openNew('receivable')} title={t('loansCredits.add')} aria-label={t('loansCredits.add')}>
+        <Plus size={22} />
+      </button>
     </div>
   );
 }
