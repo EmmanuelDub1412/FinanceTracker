@@ -29,6 +29,16 @@ function remainingOf(item) {
   return Number(base) || 0;
 }
 
+// Convertit un montant (dans `fromCurrency`) vers la devise du compte
+// affecte, si elle differe : le compte doit toujours etre debite/credite
+// dans SA propre devise, jamais dans celle de la fiche pret/creance.
+function convertForAccount(amt, fromCurrency, account, rate) {
+  const toCurrency = account?.currency || fromCurrency;
+  if (toCurrency === fromCurrency) return { amount: amt, currency: toCurrency };
+  const converted = fromCurrency === 'USD' ? amt * rate : amt / rate;
+  return { amount: Math.round(converted * 100) / 100, currency: toCurrency };
+}
+
 function defaultPaymentAmount(item) {
   const remaining = remainingOf(item);
   if (item.kind === 'loan') return Number(item.monthlyPayment) || remaining;
@@ -391,10 +401,12 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
     if (accountId && onAddTransaction && amt > 0) {
       const isOut = OUT_KINDS.includes(item.kind);
       const category = isOut ? 'DEP-REM' : (item.kind === 'bond' ? 'REV-INT' : 'REV-CRE');
+      const account = accounts.find(a => a.id === accountId);
+      const { amount: convertedAmt, currency: accCurrency } = convertForAccount(amt, item.currency, account, rate);
       onAddTransaction({
         date: paymentDate, description: item.name, category,
         txType: isOut ? 'expense' : 'income',
-        amount: amt, currency: item.currency,
+        amount: convertedAmt, currency: accCurrency,
         debitAccount: isOut ? accountId : '',
         creditAccount: isOut ? '' : accountId,
         status: 'confirmed', beneficiary: item.name,
@@ -473,10 +485,12 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
         if (amt > 0) {
           const isOut = direction === 'out';
           const category = data.kind === 'bond' ? 'DEP-EEA' : (isOut ? 'DEP-PRE' : 'REV-EMP');
+          const account = accounts.find(a => a.id === fundingAccountId);
+          const { amount: convertedAmt, currency: accCurrency } = convertForAccount(amt, data.currency, account, rate);
           onAddTransaction({
             date: data.startDate || today(), description: data.name, category,
             txType: data.kind === 'bond' ? 'savings' : (isOut ? 'expense' : 'income'),
-            amount: amt, currency: data.currency,
+            amount: convertedAmt, currency: accCurrency,
             debitAccount: isOut ? fundingAccountId : '',
             creditAccount: isOut ? '' : fundingAccountId,
             status: 'confirmed', beneficiary: data.name,
