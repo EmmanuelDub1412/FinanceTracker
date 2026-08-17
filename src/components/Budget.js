@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   PieChart, Plus, Pencil, Trash2, AlertTriangle, CalendarRange, CalendarDays,
-  ShoppingCart, Fuel, Car, Home, HeartPulse, GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package,
+  ShoppingCart, Fuel, Car, Home, HeartPulse, GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, HandCoins,
 } from 'lucide-react';
 import { fmt, fmtHTG, toHTG, CATEGORIES, getCat, weekRange, monthRange } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -14,7 +14,7 @@ const PERIODS = ['weekly', 'monthly'];
 const CAT_ICON = {
   'DEP-ALI': ShoppingCart, 'DEP-TRA': Fuel, 'DEP-AUTO': Car, 'DEP-LOG': Home,
   'DEP-SAN': HeartPulse, 'DEP-EDU': GraduationCap, 'DEP-COM': Smartphone,
-  'DEP-LOI': PartyPopper, 'DEP-HAB': Shirt, 'DEP-REM': CreditCard, 'DEP-DIV': Package,
+  'DEP-LOI': PartyPopper, 'DEP-HAB': Shirt, 'DEP-REM': CreditCard, 'DEP-DIV': Package, 'DEP-PRE': HandCoins,
 };
 const getCatIcon = (id) => CAT_ICON[id] || Package;
 

@@ -33,9 +33,13 @@ export const computeBalance = (account, transactions) => {
   transactions
     .filter(t=>(t.debitAccount===account.id||t.creditAccount===account.id)&&t.status==='confirmed')
     .forEach(t=>{
-      const amt = Number(t.amount)||0;
-      if(t.creditAccount===account.id) balance+=amt;
-      if(t.debitAccount===account.id)  balance-=amt;
+      // Pour un virement entre comptes de devises differentes, `amount` est
+      // le montant debite du compte source (dans sa devise) et `creditAmount`
+      // le montant converti credite au compte destinataire (dans la sienne).
+      // On retombe sur `amount` quand creditAmount n'existe pas (transactions
+      // normales ou virements meme devise).
+      if(t.creditAccount===account.id) balance += Number(t.creditAmount ?? t.amount) || 0;
+      if(t.debitAccount===account.id)  balance -= Number(t.amount) || 0;
     });
   return balance;
 };
@@ -49,12 +53,14 @@ export const accountHistory = (account, transactions) => {
   const chrono = [...touching].sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||'').localeCompare(b.createdAt||''));
   let balance = Number(account.initialBalance)||0;
   const withRunning = chrono.map(t=>{
-    const amt = Number(t.amount)||0;
     const direction = t.creditAccount===account.id ? 'in' : 'out';
+    // Montant a afficher/appliquer du point de vue de CE compte : pour un
+    // virement cross-devise, le cote credite utilise le montant converti.
+    const nativeAmount = direction==='in' ? (Number(t.creditAmount ?? t.amount)||0) : (Number(t.amount)||0);
     if(t.status==='confirmed'){
-      if(direction==='in') balance+=amt; else balance-=amt;
+      if(direction==='in') balance+=nativeAmount; else balance-=nativeAmount;
     }
-    return {...t,direction,runningBalance:balance};
+    return {...t,direction,nativeAmount,runningBalance:balance};
   });
   return withRunning;
 };
@@ -86,6 +92,7 @@ export const CATEGORIES = [
   {id:'REV-DIV',label:'Autres Revenus',         type:'income',  icon:'💰'},
   {id:'REV-CRE',label:'Remboursement Reçu',     type:'income',  icon:'🤝'},
   {id:'REV-INT',label:'Intérêts / Placements',  type:'income',  icon:'📈'},
+  {id:'REV-EMP',label:'Emprunt Reçu',           type:'income',  icon:'🏦'},
   {id:'DEP-ALI',label:'Alimentation',           type:'expense', icon:'🛒'},
   {id:'DEP-TRA',label:'Transport / Carburant',  type:'expense', icon:'⛽'},
   {id:'DEP-AUTO',label:'Voiture / Automobile',  type:'expense', icon:'🚗'},
@@ -97,6 +104,7 @@ export const CATEGORIES = [
   {id:'DEP-HAB',label:'Habillement',            type:'expense', icon:'👔'},
   {id:'DEP-EEA',label:'Épargne / Investissement',type:'savings',icon:'🏦'},
   {id:'DEP-REM',label:'Remboursement Dettes',   type:'expense', icon:'💳'},
+  {id:'DEP-PRE',label:'Prêt Accordé',           type:'expense', icon:'🤲'},
   {id:'DEP-DIV',label:'Dépenses Diverses',      type:'expense', icon:'📦'},
   {id:'TRF-INT',label:'Transfert Interne',      type:'transfer',icon:'🔄'},
 ];

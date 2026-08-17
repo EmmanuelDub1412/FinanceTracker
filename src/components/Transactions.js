@@ -3,7 +3,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle,
   Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown,
   Briefcase, BarChart3, Wallet, Handshake, TrendingUp, ShoppingCart, Fuel, Car, Home, HeartPulse,
-  GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw,
+  GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw, HandCoins, Landmark,
 } from 'lucide-react';
 import { fmtHTG, fmt, toHTG, today, CATEGORIES, getCat } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -21,6 +21,7 @@ const CAT_ICON = {
   'DEP-ALI': ShoppingCart, 'DEP-TRA': Fuel, 'DEP-AUTO': Car, 'DEP-LOG': Home, 'DEP-SAN': HeartPulse,
   'DEP-EDU': GraduationCap, 'DEP-COM': Smartphone, 'DEP-LOI': PartyPopper, 'DEP-HAB': Shirt,
   'DEP-EEA': PiggyBank, 'DEP-REM': CreditCard, 'DEP-DIV': Package, 'TRF-INT': RefreshCw,
+  'REV-EMP': Landmark, 'DEP-PRE': HandCoins,
 };
 const getCatIcon = (id) => CAT_ICON[id] || Package;
 
@@ -83,15 +84,24 @@ function CategoryPicker({ options, value, onChange, allLabel, placeholder }) {
   );
 }
 
-function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onSave, onClose }) {
+function TxModal({ tx, accounts, settings, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onSave, onClose }) {
   const { t, tId } = useLanguage();
+  const rate = Number(settings?.usdToHtg)||130;
   const [form, setForm] = useState(tx || {
     date:today(), description:'', category:'DEP-ALI', txType:'expense',
-    debitAccount:'', creditAccount:'', amount:'', currency:'HTG',
+    debitAccount:'', creditAccount:'', amount:'', currency:'HTG', creditAmount:'',
     status:'confirmed', beneficiary:'', notes:'',
     receiptUrl:'', receiptPath:'', receiptName:'', receiptType:'',
   });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // Virement entre deux comptes de devises differentes : le montant credite
+  // au compte destinataire doit etre converti (pas le meme chiffre que le
+  // montant debite), en utilisant le taux de change courant comme suggestion
+  // modifiable manuellement.
+  const debitAcc = accounts.find(a=>a.id===form.debitAccount);
+  const creditAcc = accounts.find(a=>a.id===form.creditAccount);
+  const crossCurrency = form.txType==='transfer' && debitAcc && creditAcc && debitAcc.currency!==creditAcc.currency;
 
   // Selecteur de beneficiaire : liste deroulante alimentee par la collection
   // "beneficiaires", avec option pour en ajouter un nouveau a la volee.
@@ -137,6 +147,11 @@ function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBen
   const handleSave = async () => {
     if (!form.description || !form.amount) return;
     let payload = { ...form, amount: Number(form.amount) };
+    if (crossCurrency) {
+      payload.creditAmount = Number(form.creditAmount) || 0;
+    } else if ('creditAmount' in payload) {
+      delete payload.creditAmount;
+    }
     if (newFile) {
       setUploading(true);
       try {
@@ -197,38 +212,75 @@ function TxModal({ tx, accounts, beneficiaries=[], onAddBeneficiary, onDeleteBen
             <input className="fi" value={form.description} onChange={e=>set('description',e.target.value)} placeholder={t('transactions.descPh')}/>
           </div>
 
-          <div className="frow">
-            <div className="fg">
-              <label className="fl">{t('transactions.amount')} *</label>
-              <input className="fi" type="number" value={form.amount} onChange={e=>set('amount',e.target.value)} placeholder="0"/>
-            </div>
-            <div className="fg">
-              <label className="fl">{t('transactions.currency')}</label>
-              <select className="fs" value={form.currency} onChange={e=>set('currency',e.target.value)}>
-                <option value="HTG">HTG</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-          </div>
-
-          {form.txType==='transfer' ? (
+          {form.txType==='transfer' && (
             <div className="frow">
               <div className="fg">
                 <label className="fl">{t('transactions.sourceAcc')}</label>
-                <select className="fs" value={form.debitAccount} onChange={e=>set('debitAccount',e.target.value)}>
+                <select className="fs" value={form.debitAccount} onChange={e=>{
+                  const accId = e.target.value;
+                  const acc = accounts.find(a=>a.id===accId);
+                  set('debitAccount', accId);
+                  if (acc) set('currency', acc.currency);
+                }}>
                   <option value="">{t('transactions.select')}</option>
-                  {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a=><option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
                 </select>
               </div>
               <div className="fg">
                 <label className="fl">{t('transactions.destAcc')}</label>
                 <select className="fs" value={form.creditAccount} onChange={e=>set('creditAccount',e.target.value)}>
                   <option value="">{t('transactions.select')}</option>
-                  {accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a=><option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
                 </select>
               </div>
             </div>
+          )}
+
+          {form.txType==='transfer' ? (
+            <div className="frow">
+              <div className="fg">
+                <label className="fl">{t('transactions.amountSent')}{debitAcc?` (${debitAcc.currency})`:''} *</label>
+                <input className="fi" type="number" value={form.amount} onChange={e=>{
+                  const v = e.target.value;
+                  set('amount', v);
+                  if (crossCurrency) {
+                    const converted = debitAcc.currency==='USD' ? Number(v)*rate : Number(v)/rate;
+                    set('creditAmount', v ? String(Math.round(converted*100)/100) : '');
+                  }
+                }} placeholder="0"/>
+              </div>
+              {crossCurrency ? (
+                <div className="fg">
+                  <label className="fl">{t('transactions.amountReceived')} ({creditAcc.currency})</label>
+                  <input className="fi" type="number" value={form.creditAmount} onChange={e=>set('creditAmount',e.target.value)} placeholder="0"/>
+                </div>
+              ) : (
+                <div className="fg">
+                  <label className="fl">{t('transactions.currency')}</label>
+                  <select className="fs" value={form.currency} disabled={!!debitAcc} onChange={e=>set('currency',e.target.value)}>
+                    <option value="HTG">HTG</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </div>
+              )}
+            </div>
           ) : (
+            <div className="frow">
+              <div className="fg">
+                <label className="fl">{t('transactions.amount')} *</label>
+                <input className="fi" type="number" value={form.amount} onChange={e=>set('amount',e.target.value)} placeholder="0"/>
+              </div>
+              <div className="fg">
+                <label className="fl">{t('transactions.currency')}</label>
+                <select className="fs" value={form.currency} onChange={e=>set('currency',e.target.value)}>
+                  <option value="HTG">HTG</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {form.txType!=='transfer' && (
             <div className="fg">
               <label className="fl">{form.txType==='income'?t('transactions.creditedTo'):t('transactions.debitedFrom')}</label>
               <select className="fs"
@@ -534,7 +586,7 @@ export default function Transactions({ transactions, accounts, settings, benefic
         </div>
       </div>
 
-      {showModal&&<TxModal tx={editing} accounts={accounts} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onDeleteBeneficiary={onDeleteBeneficiary} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
+      {showModal&&<TxModal tx={editing} accounts={accounts} settings={settings} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onDeleteBeneficiary={onDeleteBeneficiary} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
     </div>
   );
 }

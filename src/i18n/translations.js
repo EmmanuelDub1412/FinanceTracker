@@ -75,6 +75,7 @@ export const translations = {
       edit: 'Modifier la transaction', add: 'Nouvelle Transaction',
       date: 'Date', category: 'Catégorie', description: 'Description', descPh: 'Description de la transaction',
       amount: 'Montant', currency: 'Devise', sourceAcc: 'Compte Source', destAcc: 'Compte Destination',
+      amountSent: 'Montant envoyé', amountReceived: 'Montant reçu',
       select: 'Sélectionner', selectAcc: 'Sélectionner un compte',
       creditedTo: 'Crédité sur', debitedFrom: 'Débité de', status: 'Statut',
       beneficiary: 'Bénéficiaire / Tiers', optional: 'Optionnel', cancel: 'Annuler',
@@ -158,6 +159,7 @@ export const translations = {
       m_recordPayment: 'Enregistrer un paiement', m_paymentAmount: 'Montant du versement', m_paymentDate: 'Date du versement',
       m_paymentAccountOut: 'Compte débité', m_paymentAccountIn: 'Compte crédité',
       m_paymentAccountNone: 'Aucun (ne pas affecter un compte)', m_confirmPayment: 'Confirmer',
+      m_fundingAccountOut: 'Compte débité (argent prêté/investi)', m_fundingAccountIn: 'Compte crédité (argent reçu)',
     },
     budget: {
       title: 'Budget', subtitle: 'Surveille tes dépenses par catégorie, semaine par semaine ou mois par mois',
@@ -190,6 +192,7 @@ export const translations = {
       'DEP-LOI':'Loisirs / Sorties','DEP-HAB':'Habillement','DEP-EEA':'Épargne / Investissement',
       'DEP-REM':'Remboursement Dettes','DEP-DIV':'Dépenses Diverses','TRF-INT':'Transfert Interne',
       'REV-CRE':'Remboursement Reçu','REV-INT':'Intérêts / Placements',
+      'REV-EMP':'Emprunt Reçu','DEP-PRE':'Prêt Accordé',
     },
     accountTypes: { bank:'Banque', credit:'Carte Crédit', cash:'Cash', saving:'Épargne', mobile:'Monnaie Mobile' },
     goalTypes: {
@@ -352,6 +355,7 @@ export const translations = {
       m_recordPayment: 'Record a payment', m_paymentAmount: 'Payment amount', m_paymentDate: 'Payment date',
       m_paymentAccountOut: 'Account debited', m_paymentAccountIn: 'Account credited',
       m_paymentAccountNone: 'None (do not affect an account)', m_confirmPayment: 'Confirm',
+      m_fundingAccountOut: 'Account debited (money lent/invested)', m_fundingAccountIn: 'Account credited (money received)',
     },
     budget: {
       title: 'Budget', subtitle: 'Track your spending by category, week by week or month by month',
@@ -384,6 +388,7 @@ export const translations = {
       'DEP-LOI':'Leisure / Outings','DEP-HAB':'Clothing','DEP-EEA':'Savings / Investment',
       'DEP-REM':'Debt Repayment','DEP-DIV':'Miscellaneous Expenses','TRF-INT':'Internal Transfer',
       'REV-CRE':'Repayment Received','REV-INT':'Interest / Investment Income',
+      'REV-EMP':'Loan Received','DEP-PRE':'Loan Given',
     },
     accountTypes: { bank:'Bank', credit:'Credit Card', cash:'Cash', saving:'Savings', mobile:'Mobile Money' },
     goalTypes: {

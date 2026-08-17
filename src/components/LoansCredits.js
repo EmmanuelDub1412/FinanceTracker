@@ -14,6 +14,11 @@ const FREQ_PER_YEAR = { monthly: 12, quarterly: 4, semiannual: 2, annual: 1 };
 // Les autres (receivable, bond) en ajoutent (entree).
 const OUT_KINDS = ['loan', 'payable', 'subscription'];
 
+// A la CREATION d'une fiche (pas au remboursement), le sens du mouvement est
+// invers : preter (receivable) ou investir (bond) fait sortir l'argent de
+// suite ; emprunter (payable) ou recevoir un pret (loan) le fait entrer.
+const CREATE_DIRECTION = { receivable: 'out', bond: 'out', payable: 'in', loan: 'in' };
+
 // Certaines fiches anciennes ont ete enregistrees avec remainingBalance a
 // chaine vide (''), qui n'est pas capte par `??` (seulement null/undefined).
 // Ce helper traite '', null et undefined comme "non defini" et retombe sur
@@ -64,7 +69,7 @@ function daysUntil(dateStr) {
   return Math.round((d - n) / 86400000);
 }
 
-function LoanModal({ item, defaultKind, onSave, onClose }) {
+function LoanModal({ item, defaultKind, accounts, onSave, onClose }) {
   const { t } = useLanguage();
   const [form, setForm] = useState(item || {
     kind: defaultKind || 'receivable',
@@ -72,7 +77,7 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
     amount: '', dueDate: '',
     principal: '', remainingBalance: '', monthlyPayment: '', dueDay: '1', interestRate: '', startDate: today(),
     couponRate: '', frequency: 'monthly', nextPaymentDate: '', maturityDate: '',
-    alertEnabled: false, alertDays: '3',
+    alertEnabled: false, alertDays: '3', fundingAccountId: '',
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const kind = form.kind;
@@ -257,6 +262,16 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
             </>
           )}
 
+          {!item && CREATE_DIRECTION[kind] && (
+            <div className="fg">
+              <label className="fl">{CREATE_DIRECTION[kind] === 'out' ? t('loansCredits.m_fundingAccountOut') : t('loansCredits.m_fundingAccountIn')}</label>
+              <select className="fs" value={form.fundingAccountId || ''} onChange={e => set('fundingAccountId', e.target.value)}>
+                <option value="">{t('loansCredits.m_paymentAccountNone')}</option>
+                {(accounts || []).map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+              </select>
+            </div>
+          )}
+
           <hr className="div" />
           <div className="tgl-row">
             <span style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -432,7 +447,35 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
     if (!editing && ['receivable', 'payable'].includes(data.kind) && (data.remainingBalance === undefined || data.remainingBalance === '')) {
       data = { ...data, remainingBalance: data.amount };
     }
+    // fundingAccountId n'existe que le temps du formulaire : sert a creer la
+    // transaction d'impact ci-dessous, jamais persiste sur la fiche.
+    const fundingAccountId = data.fundingAccountId;
+    if ('fundingAccountId' in data) {
+      const { fundingAccountId: _drop, ...rest } = data;
+      data = rest;
+    }
+
     editing ? onUpdate(editing.id, data) : onAdd(data);
+
+    if (!editing && fundingAccountId && onAddTransaction) {
+      const direction = CREATE_DIRECTION[data.kind];
+      if (direction) {
+        const amt = data.kind === 'loan' ? (Number(data.remainingBalance) || 0) : (Number(data.amount) || 0);
+        if (amt > 0) {
+          const isOut = direction === 'out';
+          const category = data.kind === 'bond' ? 'DEP-EEA' : (isOut ? 'DEP-PRE' : 'REV-EMP');
+          onAddTransaction({
+            date: data.startDate || today(), description: data.name, category,
+            txType: data.kind === 'bond' ? 'savings' : (isOut ? 'expense' : 'income'),
+            amount: amt, currency: data.currency,
+            debitAccount: isOut ? fundingAccountId : '',
+            creditAccount: isOut ? '' : fundingAccountId,
+            status: 'confirmed', beneficiary: data.name,
+          });
+        }
+      }
+    }
+
     setShowModal(false); setEditing(null);
   };
   const openNew = (kind) => { setNewKind(kind); setEditing(null); setShowModal(true); };
@@ -596,7 +639,7 @@ export default function LoansCredits({ loans, settings, accounts = [], onAdd, on
         </div>
       )}
 
-      {showModal && <LoanModal item={editing} defaultKind={newKind} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
+      {showModal && <LoanModal item={editing} defaultKind={newKind} accounts={accounts} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
       {payingItem && <PaymentModal item={payingItem} accounts={accounts} onConfirm={confirmPayment} onClose={() => setPayingItem(null)} />}
     </div>
   );
