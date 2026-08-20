@@ -420,7 +420,14 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
     if (l.kind === 'loan') dueDate = nextDueFromDay(l.dueDay);
     if (l.kind === 'bond' || l.kind === 'subscription') dueDate = l.nextPaymentDate || null;
     const dLeft = dueDate ? daysUntil(dueDate) : null;
-    const alertFired = (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
+    // Une creance/dette/pret solde (montant ou solde restant a 0) n'a plus
+    // de raison de declencher un rappel, meme si sa date d'echeance est
+    // depassee : on l'exclut donc des alertes des qu'elle est reglee.
+    const isSettled =
+      l.kind === 'loan' ? Number(l.remainingBalance) <= 0 :
+      (l.kind === 'receivable' || l.kind === 'payable') ? Number(l.amount) <= 0 :
+      false; // bond/subscription : pas de notion de "solde" au sens remboursement
+    const alertFired = !isSettled && (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
     const nativeAmount = l.kind === 'loan' ? (Number(l.remainingBalance) || 0) : (Number(l.amount) || 0);
     const valueHTG = toHTG(nativeAmount, l.currency, rate);
     const monthlyEquivalent = l.kind === 'subscription' ? (Number(l.amount) || 0) * (FREQ_PER_YEAR[l.frequency] || 12) / 12 : 0;

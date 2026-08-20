@@ -35,7 +35,11 @@ export default function useDueDateNotifications(loans = [], settings, t) {
       if (l.kind === 'loan') dueDate = nextDueFromDay(l.dueDay);
       if (l.kind === 'bond' || l.kind === 'subscription') dueDate = l.nextPaymentDate || null;
       const dLeft = dueDate ? daysUntil(dueDate) : null;
-      const alertFired = (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
+      const isSettled =
+        l.kind === 'loan' ? Number(l.remainingBalance) <= 0 :
+        (l.kind === 'receivable' || l.kind === 'payable') ? Number(l.amount) <= 0 :
+        false;
+      const alertFired = !isSettled && (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
       if (!alertFired) return;
 
       const key = `fintrack_notified_${l.id}_${day}`;
