@@ -93,6 +93,10 @@ export const translations = {
       confirm: 'Ajouter', deleteBeneficiary: 'Supprimer de la liste',
       deleteBeneficiaryConfirm: 'Supprimer ce bénéficiaire de la liste ?',
       exportCsv: 'Exporter en CSV',
+      linkLoanTitle: 'Créer la créance/dette correspondante ?',
+      linkLoanTextReceivable: "Tu as marqué cette transaction comme « Prêt Accordé ». Veux-tu aussi l'ajouter à Prêts & Créances pour suivre son remboursement ?",
+      linkLoanTextPayable: "Tu as marqué cette transaction comme « Emprunt Reçu ». Veux-tu aussi l'ajouter à Prêts & Créances pour suivre ton remboursement ?",
+      linkLoanSkip: 'Non merci', linkLoanConfirm: 'Créer',
     },
     savings: {
       title: 'Épargne & Objectifs', subtitle: 'Définissez vos cibles et suivez votre progression',
@@ -317,6 +321,10 @@ export const translations = {
       confirm: 'Add', deleteBeneficiary: 'Remove from list',
       deleteBeneficiaryConfirm: 'Remove this beneficiary from the list?',
       exportCsv: 'Export to CSV',
+      linkLoanTitle: 'Create the matching receivable/debt?',
+      linkLoanTextReceivable: 'You tagged this transaction as "Loan Given". Want to also add it to Loans & Credits to track repayment?',
+      linkLoanTextPayable: 'You tagged this transaction as "Loan Received". Want to also add it to Loans & Credits to track repayment?',
+      linkLoanSkip: 'No thanks', linkLoanConfirm: 'Create',
     },
     savings: {
       title: 'Savings & Goals', subtitle: 'Set your targets and track your progress',

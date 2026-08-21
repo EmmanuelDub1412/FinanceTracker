@@ -166,6 +166,53 @@ function CategoryPicker({ options, value, onChange, allLabel, placeholder, onAdd
   );
 }
 
+// Propose de creer la creance/dette correspondante dans Prets & Creances
+// juste apres l'ajout d'une transaction categorisee "Pret Accorde" ou
+// "Emprunt Recu", pre-remplie avec les infos deja saisies (montant, devise,
+// beneficiaire, date). L'utilisateur peut ajuster le nom et la date
+// d'echeance avant de confirmer, ou simplement ignorer la proposition.
+function LinkLoanPrompt({ kind, data, onConfirm, onClose }) {
+  const { t } = useLanguage();
+  const [name, setName] = useState(data.beneficiary || data.description || '');
+  const [dueDate, setDueDate] = useState('');
+
+  const confirm = () => {
+    if (!name.trim()) return;
+    onConfirm({
+      kind, name: name.trim(), currency: data.currency, amount: Number(data.amount) || 0,
+      dueDate, notes: data.description || '', alertEnabled: false, alertDays: '3',
+    });
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-hd">
+          <div className="modal-ttl"><HandCoins size={18} style={{ color: 'var(--g1)' }} /> {t('transactions.linkLoanTitle')}</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+            {kind === 'receivable' ? t('transactions.linkLoanTextReceivable') : t('transactions.linkLoanTextPayable')}
+          </div>
+          <div className="fg">
+            <label className="fl">{t('loansCredits.m_name')}</label>
+            <input className="fi" value={name} onChange={e => setName(e.target.value)} placeholder={t('loansCredits.m_namePh')} />
+          </div>
+          <div className="fg">
+            <label className="fl">{t('loansCredits.m_dueDate')} ({t('transactions.optional')})</label>
+            <input className="fi" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+          </div>
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('transactions.linkLoanSkip')}</button>
+            <button className="btn btn-primary" disabled={!name.trim()} onClick={confirm}>{t('transactions.linkLoanConfirm')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TxModal({ tx, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onSave, onClose }) {
   const { t, tId } = useLanguage();
   const rate = Number(settings?.usdToHtg)||130;
@@ -483,7 +530,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
   );
 }
 
-export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete }) {
+export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete, onAddLoan }) {
   const { t, tId, lang } = useLanguage();
   const allCats = useMemo(()=>mergeCategories(categories),[categories]);
   const catLabelOf = (id) => tId('categories', id, findCategory(id, categories).label);
@@ -560,7 +607,24 @@ export default function Transactions({ transactions, accounts, settings, categor
   const nativeExpense = useMemo(()=>nativeSums(expenseTx),[expenseTx]);
   const nativeNet = { HTG: nativeIncome.HTG-nativeExpense.HTG, USD: nativeIncome.USD-nativeExpense.USD };
 
-  const handleSave = (data)=>{ editing?onUpdate(editing.id,data):onAdd(data); setShowModal(false);setEditing(null); };
+  // Categories qui representent un mouvement d'argent prete/emprunte : si
+  // l'utilisateur en choisit une sur une NOUVELLE transaction, on propose de
+  // creer directement la creance/dette correspondante dans Prets & Creances,
+  // pour eviter d'avoir a saisir la meme info deux fois dans deux modules
+  // qui ne sont pas lies automatiquement.
+  const LOAN_LINK_KIND = { 'DEP-PRE': 'receivable', 'REV-EMP': 'payable' };
+  const [linkPrompt, setLinkPrompt] = useState(null);
+
+  const handleSave = (data)=>{
+    if (editing) {
+      onUpdate(editing.id,data);
+    } else {
+      onAdd(data);
+      const kind = LOAN_LINK_KIND[data.category];
+      if (kind && onAddLoan) setLinkPrompt({ kind, data });
+    }
+    setShowModal(false);setEditing(null);
+  };
   const fmtDate = d=>{if(!d)return'';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'});};
 
   // Exporte la liste filtree/triee actuelle (celle affichee a l'ecran) en CSV,
@@ -729,6 +793,9 @@ export default function Transactions({ transactions, accounts, settings, categor
       </div>
 
       {showModal&&<TxModal tx={editing} accounts={accounts} settings={settings} categories={categories} onAddCategory={onAddCategory} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onDeleteBeneficiary={onDeleteBeneficiary} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
+      {linkPrompt&&<LinkLoanPrompt kind={linkPrompt.kind} data={linkPrompt.data}
+        onConfirm={(payload)=>{ onAddLoan(payload); setLinkPrompt(null); }}
+        onClose={()=>setLinkPrompt(null)}/>}
 
       <button className="fab-add" onClick={()=>{setEditing(null);setShowModal(true);}} title={t('transactions.new')} aria-label={t('transactions.new')}>
         <Plus size={22}/>
