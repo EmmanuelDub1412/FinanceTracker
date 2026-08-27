@@ -4,6 +4,15 @@ export const fmtUSD = (n) =>
   new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n??0)+' USD';
 export const fmt = (n, currency='HTG') => currency==='USD' ? fmtUSD(n) : fmtHTG(n);
 export const toHTG = (amount, currency, rate) => currency==='USD' ? Number(amount)*rate : Number(amount);
+// Convertit un montant d'une devise vers une autre (HTG <-> USD uniquement,
+// les deux seules devises supportees par l'app) via le taux de change
+// courant. Utilise pour regler une creance/dette/pret dans une devise
+// differente de celle du compte utilise, ou de celle de l'element lui-meme.
+export const convertAmount = (amount, fromCurrency, toCurrency, rate) => {
+  if (fromCurrency === toCurrency) return Number(amount) || 0;
+  const htg = toHTG(amount, fromCurrency, rate);
+  return toCurrency === 'USD' ? htg / rate : htg;
+};
 export const toLocalISODate = (d) => {
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,'0');

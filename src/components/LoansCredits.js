@@ -3,7 +3,7 @@ import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
   AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react';
-import { fmt, toHTG, fmtHTG, today, toLocalISODate } from '../utils/finance';
+import { fmt, toHTG, fmtHTG, today, toLocalISODate, convertAmount } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const KINDS = ['receivable', 'payable', 'loan', 'bond', 'subscription'];
@@ -265,7 +265,7 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
 // ── Nouveau : formulaire d'enregistrement d'un mouvement (remboursement
 // recu, remboursement effectue, mensualite payee, interet recu...) qui
 // cree une vraie transaction sur le compte choisi.
-function PaymentModal({ item, accounts, onSave, onClose }) {
+function PaymentModal({ item, accounts, rate, onSave, onClose }) {
   const { t } = useLanguage();
   const isIncome = item.kind === 'receivable' || item.kind === 'bond';
   const defaultAmount =
@@ -277,6 +277,16 @@ function PaymentModal({ item, accounts, onSave, onClose }) {
   const [account, setAccount] = useState('');
   const [moveType, setMoveType] = useState('interest'); // uniquement pour "bond"
   const [notes, setNotes] = useState('');
+
+  // Le compte choisi impose la devise du paiement (un compte a une seule
+  // devise) : on part de la devise de l'element par defaut, mais des qu'un
+  // compte est selectionne, le montant saisi s'exprime dans SA devise, pas
+  // forcement celle de la creance/dette/pret. Permet de regler un pret en
+  // USD depuis un compte HTG (ou l'inverse), avec conversion automatique.
+  const selectedAcc = accounts.find(a => a.id === account);
+  const payCurrency = selectedAcc?.currency || item.currency;
+  const crossCurrency = payCurrency !== item.currency;
+  const amountInItemCurrency = crossCurrency ? convertAmount(Number(amount) || 0, payCurrency, item.currency, rate) : (Number(amount) || 0);
 
   const TITLE = {
     receivable: t('loansCredits.pm_titleReceivable'),
@@ -290,7 +300,10 @@ function PaymentModal({ item, accounts, onSave, onClose }) {
 
   const handleSave = () => {
     if (!canSave) return;
-    onSave({ amount: Number(amount), date, account, type: moveType, notes: notes.trim() });
+    onSave({
+      amount: amountInItemCurrency, paidAmount: Number(amount), paidCurrency: payCurrency,
+      date, account, type: moveType, notes: notes.trim(),
+    });
   };
 
   return (
@@ -322,23 +335,28 @@ function PaymentModal({ item, accounts, onSave, onClose }) {
             </div>
           )}
 
+          <div className="fg">
+            <label className="fl">{isIncome ? t('loansCredits.pm_accountCredited') : t('loansCredits.pm_accountDebited')}</label>
+            <select className="fs" value={account} onChange={e => setAccount(e.target.value)}>
+              <option value="">{t('loansCredits.pm_selectAccount')}</option>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+            </select>
+          </div>
+
           <div className="frow">
             <div className="fg">
-              <label className="fl">{t('loansCredits.pm_amount')} ({item.currency})</label>
+              <label className="fl">{t('loansCredits.pm_amount')} ({payCurrency})</label>
               <input className="fi" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
+              {crossCurrency && Number(amount) > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                  ≈ {fmt(amountInItemCurrency, item.currency)}
+                </div>
+              )}
             </div>
             <div className="fg">
               <label className="fl">{t('loansCredits.pm_date')}</label>
               <input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
-          </div>
-
-          <div className="fg">
-            <label className="fl">{isIncome ? t('loansCredits.pm_accountCredited') : t('loansCredits.pm_accountDebited')}</label>
-            <select className="fs" value={account} onChange={e => setAccount(e.target.value)}>
-              <option value="">{t('loansCredits.pm_selectAccount')}</option>
-              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
           </div>
 
           <div className="fg">
@@ -375,7 +393,7 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
   // interet...) : cree une vraie transaction sur le compte choisi (retrait
   // ou depot selon le sens), puis met a jour le solde restant du pret/de
   // la creance/dette et archive le mouvement dans paymentHistory.
-  const recordPayment = (item, { amount, date, account, type, notes }) => {
+  const recordPayment = (item, { amount, paidAmount, paidCurrency, date, account, type, notes }) => {
     const isIncome = item.kind === 'receivable' || item.kind === 'bond';
     const category = isIncome ? 'REV-DIV' : (item.kind === 'subscription' ? 'DEP-DIV' : 'DEP-REM');
     const desc =
@@ -385,12 +403,16 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
       item.kind === 'bond'       ? (type === 'capital' ? `Rachat capital : ${item.name}` : `Intérêts reçus : ${item.name}`) :
       `Paiement : ${item.name}`;
 
+    // La transaction reelle est postee dans la devise du compte utilise
+    // (paidAmount/paidCurrency), qui peut differer de la devise de la
+    // creance/dette elle-meme (amount, deja converti dans sa devise pour
+    // mettre a jour son solde ci-dessous).
     onAddTransaction?.({
       date, description: desc, category,
       txType: isIncome ? 'income' : 'expense',
       debitAccount: isIncome ? '' : account,
       creditAccount: isIncome ? account : '',
-      amount, currency: item.currency,
+      amount: paidAmount ?? amount, currency: paidCurrency || item.currency,
       status: 'confirmed', beneficiary: '', notes: notes || '',
     });
 
@@ -632,7 +654,7 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
       )}
 
       {showModal && <LoanModal item={editing} defaultKind={newKind} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
-      {payingItem && <PaymentModal item={payingItem} accounts={accounts} onSave={(data) => recordPayment(payingItem, data)} onClose={() => setPayingItem(null)} />}
+      {payingItem && <PaymentModal item={payingItem} accounts={accounts} rate={rate} onSave={(data) => recordPayment(payingItem, data)} onClose={() => setPayingItem(null)} />}
     </div>
   );
 }
