@@ -416,7 +416,12 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
       status: 'confirmed', beneficiary: '', notes: notes || '',
     });
 
-    const history = [...(item.paymentHistory || []), { date, amount, account, type: item.kind === 'bond' ? type : undefined }];
+    // Firestore rejette les valeurs `undefined` (meme dans un tableau
+    // imbrique) : on n'ajoute la cle `type` que pour les obligations, plutot
+    // que de la mettre a `undefined` pour les autres types d'element.
+    const historyEntry = { date, amount, account };
+    if (item.kind === 'bond') historyEntry.type = type;
+    const history = [...(item.paymentHistory || []), historyEntry];
 
     // Arrondi a 2 decimales : la conversion de devise (paiement dans une
     // devise differente de celle de l'element) peut introduire des restes
