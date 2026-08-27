@@ -418,17 +418,23 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
 
     const history = [...(item.paymentHistory || []), { date, amount, account, type: item.kind === 'bond' ? type : undefined }];
 
+    // Arrondi a 2 decimales : la conversion de devise (paiement dans une
+    // devise differente de celle de l'element) peut introduire des restes
+    // flottants infimes (0.0000000002 au lieu de 0), qui empecheraient sinon
+    // le solde d'atteindre exactement zero et l'element de passer a "Solde".
+    const round2 = (n) => Math.round(n * 100) / 100;
+
     if (item.kind === 'subscription') {
       onUpdate(item.id, { nextPaymentDate: advanceDate(item.nextPaymentDate, item.frequency), paymentHistory: history });
     } else if (item.kind === 'loan') {
-      const newBalance = Math.max(0, (Number(item.remainingBalance) || 0) - amount);
+      const newBalance = Math.max(0, round2((Number(item.remainingBalance) || 0) - amount));
       onUpdate(item.id, { remainingBalance: newBalance, paymentHistory: history });
     } else if (item.kind === 'receivable' || item.kind === 'payable') {
-      const newAmount = Math.max(0, (Number(item.amount) || 0) - amount);
+      const newAmount = Math.max(0, round2((Number(item.amount) || 0) - amount));
       onUpdate(item.id, { amount: newAmount, paymentHistory: history });
     } else if (item.kind === 'bond') {
       if (type === 'capital') {
-        const newAmount = Math.max(0, (Number(item.amount) || 0) - amount);
+        const newAmount = Math.max(0, round2((Number(item.amount) || 0) - amount));
         onUpdate(item.id, { amount: newAmount, paymentHistory: history });
       } else {
         onUpdate(item.id, { paymentHistory: history });
@@ -445,15 +451,17 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
     // Une creance/dette/pret solde (montant ou solde restant a 0) n'a plus
     // de raison de declencher un rappel, meme si sa date d'echeance est
     // depassee : on l'exclut donc des alertes des qu'elle est reglee.
+    // Tolerance de 1 centime pour absorber les restes flottants issus des
+    // conversions de devise (voir round2 dans recordPayment).
     const isSettled =
-      l.kind === 'loan' ? Number(l.remainingBalance) <= 0 :
-      (l.kind === 'receivable' || l.kind === 'payable') ? Number(l.amount) <= 0 :
+      l.kind === 'loan' ? Number(l.remainingBalance) <= 0.01 :
+      (l.kind === 'receivable' || l.kind === 'payable') ? Number(l.amount) <= 0.01 :
       false; // bond/subscription : pas de notion de "solde" au sens remboursement
     const alertFired = !isSettled && (l.alertEnabled === true || l.alertEnabled === 'true') && dLeft !== null && dLeft <= Number(l.alertDays || 0);
     const nativeAmount = l.kind === 'loan' ? (Number(l.remainingBalance) || 0) : (Number(l.amount) || 0);
     const valueHTG = toHTG(nativeAmount, l.currency, rate);
     const monthlyEquivalent = l.kind === 'subscription' ? (Number(l.amount) || 0) * (FREQ_PER_YEAR[l.frequency] || 12) / 12 : 0;
-    return { ...l, dueDate, dLeft, alertFired, nativeAmount, valueHTG, monthlyEquivalent };
+    return { ...l, dueDate, dLeft, alertFired, isSettled, nativeAmount, valueHTG, monthlyEquivalent };
   }), [loans, rate]);
 
   const groups = {
@@ -540,10 +548,9 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
             {groups[kind].map(l => {
               const Icon = KIND_ICON[kind];
               const canPay =
-                kind === 'loan' ? Number(l.remainingBalance) > 0 :
                 kind === 'subscription' ? true :
                 kind === 'bond' ? true :
-                Number(l.amount) > 0; // receivable / payable
+                !l.isSettled; // loan / receivable / payable : bloque des que solde
               return (
                 <div key={l.id} className={`acc-card ${l.alertFired ? 'alert-on' : ''}`} onClick={() => { setEditing(l); setShowModal(true); }}>
                   {l.alertFired && <div className="alert-pill"><AlertTriangle size={9} /> {t('loansCredits.alertPrefix')}</div>}
@@ -557,13 +564,13 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
 
                   {kind === 'loan' ? (
                     <>
-                      <div className={`acc-bal ${l.remainingBalance > 0 ? 'neg' : 'pos'}`}>{fmt(Number(l.remainingBalance) || 0, l.currency)}</div>
+                      <div className={`acc-bal ${!l.isSettled ? 'neg' : 'pos'}`}>{fmt(Number(l.remainingBalance) || 0, l.currency)}</div>
                       {Number(l.monthlyPayment) > 0 && (
                         <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
                           {fmt(Number(l.monthlyPayment), l.currency)}{t('loansCredits.perMonth')}
                         </div>
                       )}
-                      {Number(l.remainingBalance) <= 0 && (l.paymentHistory || []).length > 0 && (
+                      {l.isSettled && (l.paymentHistory || []).length > 0 && (
                         <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--g-bg)', color: 'var(--g1)', borderRadius: 6, fontSize: 11, fontWeight: 700, display: 'inline-block' }}>
                           {t('loansCredits.paidOff')}
                         </div>
@@ -587,10 +594,10 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
                     </>
                   ) : (
                     <>
-                      <div className={`acc-bal ${kind === 'payable' ? 'neg' : 'pos'}`}>{fmt(Number(l.amount) || 0, l.currency)}</div>
-                      {Number(l.amount) <= 0 && (l.paymentHistory || []).length > 0 && (
+                      <div className={`acc-bal ${kind === 'payable' && !l.isSettled ? 'neg' : 'pos'}`}>{fmt(Number(l.amount) || 0, l.currency)}</div>
+                      {l.isSettled && (l.paymentHistory || []).length > 0 && (
                         <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--g-bg)', color: 'var(--g1)', borderRadius: 6, fontSize: 11, fontWeight: 700, display: 'inline-block' }}>
-                          {t('loansCredits.paidOff')}
+                          {t('loansCredits.paidOffGeneric')}
                         </div>
                       )}
                     </>
