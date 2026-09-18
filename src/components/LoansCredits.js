@@ -151,9 +151,15 @@ function LoanModal({ item, defaultKind, beneficiaries = [], onAddBeneficiary, on
                   </select>
                 </div>
               </div>
-              <div className="fg">
-                <label className="fl">{t('loansCredits.m_dueDate')}</label>
-                <input className="fi" type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
+              <div className="frow">
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_startDate')}</label>
+                  <input className="fi" type="date" value={form.startDate || ''} onChange={e => set('startDate', e.target.value)} />
+                </div>
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_dueDate')}</label>
+                  <input className="fi" type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
+                </div>
               </div>
             </>
           )}
@@ -182,9 +188,15 @@ function LoanModal({ item, defaultKind, beneficiaries = [], onAddBeneficiary, on
                   <input className="fi" type="number" min="1" max="31" value={form.dueDay} onChange={e => set('dueDay', e.target.value)} placeholder="ex. 5" />
                 </div>
               </div>
-              <div className="fg">
-                <label className="fl">{t('loansCredits.m_interestRate')}</label>
-                <input className="fi" type="number" value={form.interestRate} onChange={e => set('interestRate', e.target.value)} placeholder="0" />
+              <div className="frow">
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_interestRate')}</label>
+                  <input className="fi" type="number" value={form.interestRate} onChange={e => set('interestRate', e.target.value)} placeholder="0" />
+                </div>
+                <div className="fg">
+                  <label className="fl">{t('loansCredits.m_startDate')}</label>
+                  <input className="fi" type="date" value={form.startDate || ''} onChange={e => set('startDate', e.target.value)} />
+                </div>
               </div>
             </>
           )}
@@ -684,8 +696,13 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
                     </>
                   )}
 
-                  {l.dueDate && (
+                  {l.startDate && (kind === 'receivable' || kind === 'payable' || kind === 'loan') && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>
+                      <CalendarClock size={12} /> {t('loansCredits.m_startDate')} : {l.startDate}
+                    </div>
+                  )}
+                  {l.dueDate && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
                       <CalendarClock size={12} /> {l.dueDate}
                     </div>
                   )}
