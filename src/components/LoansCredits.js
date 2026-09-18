@@ -383,6 +383,8 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
   const [payingItem, setPayingItem] = useState(null);
   const [openHistory, setOpenHistory] = useState({});
   const [dispCur, setDispCur] = useState('HTG');
+  const [filterCurrency, setFilterCurrency] = useState('');
+  const [filterName, setFilterName] = useState('');
   const fmtC = (v) => dispCur === 'USD' ? fmt(v / rate, 'USD') : fmt(v, 'HTG');
 
   const accMap = useMemo(() => Object.fromEntries(accounts.map(a => [a.id, a.name])), [accounts]);
@@ -469,12 +471,28 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
     return { ...l, dueDate, dLeft, alertFired, isSettled, nativeAmount, valueHTG, monthlyEquivalent };
   }), [loans, rate]);
 
+  // Liste des personnes/contreparties (noms uniques, tous types confondus)
+  // pour alimenter le filtre "Personne" ; le filtre s'applique ensuite a
+  // tous les groupes ET aux totaux affiches, comme dans Transactions.
+  const uniqueNames = useMemo(
+    () => [...new Set(loans.map(l => l.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [loans]
+  );
+  const visible = useMemo(
+    () => enriched.filter(l =>
+      (!filterCurrency || l.currency === filterCurrency) &&
+      (!filterName || l.name === filterName)
+    ),
+    [enriched, filterCurrency, filterName]
+  );
+  const hasActiveFilter = !!(filterCurrency || filterName);
+
   const groups = {
-    receivable: enriched.filter(l => l.kind === 'receivable'),
-    payable: enriched.filter(l => l.kind === 'payable'),
-    loan: enriched.filter(l => l.kind === 'loan'),
-    bond: enriched.filter(l => l.kind === 'bond'),
-    subscription: enriched.filter(l => l.kind === 'subscription'),
+    receivable: visible.filter(l => l.kind === 'receivable'),
+    payable: visible.filter(l => l.kind === 'payable'),
+    loan: visible.filter(l => l.kind === 'loan'),
+    bond: visible.filter(l => l.kind === 'bond'),
+    subscription: visible.filter(l => l.kind === 'subscription'),
   };
 
   // Pour chaque categorie : total combine (converti, devise au choix) +
@@ -531,6 +549,29 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
         <KPI icon={TrendingUp} label={t('loansCredits.totalBondValue')} value={totalBondValue} native={nativeBond} cls="teal" />
         <KPI icon={RefreshCw} label={t('loansCredits.totalSubscriptionsMonthly')} value={totalSubscriptionsMonthly} native={nativeSubscriptions} cls="amber" />
       </div>
+
+      <div className="flex g8 mb16" style={{ flexWrap: 'wrap' }}>
+        <select className="fs" style={{ maxWidth: 200 }} value={filterCurrency} onChange={e => setFilterCurrency(e.target.value)}>
+          <option value="">{t('loansCredits.filterAllCurrencies')}</option>
+          <option value="HTG">HTG</option>
+          <option value="USD">USD</option>
+        </select>
+        <select className="fs" style={{ maxWidth: 240 }} value={filterName} onChange={e => setFilterName(e.target.value)}>
+          <option value="">{t('loansCredits.filterAllPersons')}</option>
+          {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        {hasActiveFilter && (
+          <button className="btn btn-ghost btn-sm" onClick={() => { setFilterCurrency(''); setFilterName(''); }}>
+            {t('loansCredits.filterReset')}
+          </button>
+        )}
+      </div>
+
+      {hasActiveFilter && visible.length === 0 && (
+        <div className="empty" style={{ padding: '20px 0' }}>
+          <div className="empty-txt">{t('loansCredits.noneFound')}</div>
+        </div>
+      )}
 
       {enriched.filter(l => l.alertFired).map(l => (
         <div key={l.id} className="al danger">
