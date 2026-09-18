@@ -1,8 +1,60 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Plus, Pencil, Trash2, Phone, Mail, Landmark, StickyNote, History, ArrowDownCircle, ArrowUpCircle, HandCoins } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Phone, Mail, Landmark, StickyNote, History, ArrowDownCircle, ArrowUpCircle, HandCoins, GitMerge } from 'lucide-react';
 import { genId } from '../firestoreApi';
 import { fmt } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
+
+// Fusionne un beneficiaire en double dans un autre : reassigne toutes les
+// transactions (tx.beneficiary) et tous les prets/creances/dettes (l.name)
+// qui pointaient sur le nom source vers le nom cible, puis supprime la
+// fiche en double. Affiche d'abord un decompte de ce qui va etre modifie
+// pour que l'utilisateur confirme en connaissance de cause.
+function MergeModal({ source, beneficiaries, transactions, loans, onMerge, onClose }) {
+  const { t } = useLanguage();
+  const [targetId, setTargetId] = useState('');
+  const others = beneficiaries.filter(b => b.id !== source.id);
+  const target = others.find(b => b.id === targetId);
+
+  const txCount = transactions.filter(tx => tx.beneficiary === source.name).length;
+  const loanCount = loans.filter(l => l.name === source.name).length;
+
+  const confirm = () => {
+    if (!target) return;
+    onMerge(target);
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-hd">
+          <div className="modal-ttl"><GitMerge size={18} style={{ color: 'var(--g1)' }} /> {t('beneficiaries.mergeTitle')}</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+            {t('beneficiaries.mergeText').replace('{name}', source.name)}
+          </div>
+          <div className="fg">
+            <label className="fl">{t('beneficiaries.mergeInto')}</label>
+            <select className="fs" value={targetId} onChange={e => setTargetId(e.target.value)}>
+              <option value="">{t('transactions.select')}</option>
+              {others.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+          {target && (
+            <div style={{ fontSize: 12, color: 'var(--text3)' }}>
+              {t('beneficiaries.mergeSummary').replace('{tx}', txCount).replace('{loans}', loanCount).replace('{target}', target.name)}
+            </div>
+          )}
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('beneficiaries.m_cancel')}</button>
+            <button className="btn btn-danger" disabled={!target} onClick={confirm}>{t('beneficiaries.mergeConfirm')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Historique unifie d'une personne : combine les transactions ou elle est
 // taguee comme beneficiaire ET les paiements enregistres sur les prets/
@@ -179,13 +231,23 @@ function BeneficiaryModal({ item, onSave, onClose }) {
   );
 }
 
-export default function Beneficiaries({ beneficiaries, transactions = [], loans = [], onAdd, onUpdate, onDelete }) {
+export default function Beneficiaries({ beneficiaries, transactions = [], loans = [], onAdd, onUpdate, onDelete, onUpdateTransaction, onUpdateLoan }) {
   const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewingHistory, setViewingHistory] = useState(null);
+  const [merging, setMerging] = useState(null);
 
   const handleSave = (data) => { editing ? onUpdate(editing.id, data) : onAdd(data); setShowModal(false); setEditing(null); };
+
+  // Reassigne tout l'historique du beneficiaire en double vers celui choisi,
+  // puis supprime la fiche en double.
+  const handleMerge = (source, target) => {
+    transactions.filter(tx => tx.beneficiary === source.name).forEach(tx => onUpdateTransaction?.(tx.id, { beneficiary: target.name }));
+    loans.filter(l => l.name === source.name).forEach(l => onUpdateLoan?.(l.id, { name: target.name }));
+    onDelete(source.id);
+    setMerging(null);
+  };
 
   return (
     <div>
@@ -247,6 +309,9 @@ export default function Beneficiaries({ beneficiaries, transactions = [], loans 
               <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => setViewingHistory(b)}><History size={12} /> {t('beneficiaries.history')}</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(b); setShowModal(true); }}><Pencil size={12} /> {t('beneficiaries.edit_')}</button>
+                {beneficiaries.length > 1 && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => setMerging(b)}><GitMerge size={12} /> {t('beneficiaries.merge')}</button>
+                )}
                 <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm(t('beneficiaries.deleteConfirm'))) onDelete(b.id); }}><Trash2 size={12} /></button>
               </div>
             </div>
@@ -256,6 +321,8 @@ export default function Beneficiaries({ beneficiaries, transactions = [], loans 
 
       {showModal && <BeneficiaryModal item={editing} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
       {viewingHistory && <HistoryModal beneficiary={viewingHistory} transactions={transactions} loans={loans} onClose={() => setViewingHistory(null)} />}
+      {merging && <MergeModal source={merging} beneficiaries={beneficiaries} transactions={transactions} loans={loans}
+        onMerge={(target) => handleMerge(merging, target)} onClose={() => setMerging(null)} />}
     </div>
   );
 }

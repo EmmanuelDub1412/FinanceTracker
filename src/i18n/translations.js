@@ -202,6 +202,10 @@ export const translations = {
       m_notes: 'Notes', m_notesPh: 'Optionnel', m_cancel: 'Annuler', m_save: 'Sauvegarder', m_create: 'Créer',
       history: 'Historique', linkedLoans: 'Prêts & créances liés', txHistory: 'Historique des mouvements',
       noHistory: 'Aucun mouvement enregistré avec cette personne', fromTransactions: 'Transaction', fromLoans: 'Prêt/Créance',
+      merge: 'Fusionner', mergeTitle: 'Fusionner un doublon',
+      mergeText: '« {name} » va être fusionné avec un autre bénéficiaire, puis supprimé de la liste.',
+      mergeInto: 'Fusionner avec', mergeConfirm: 'Fusionner',
+      mergeSummary: '{tx} transaction(s) et {loans} prêt(s)/créance(s) seront réassignés à « {target} ».',
     },
     settings: {
       title: 'Paramètres', subtitle: 'Configuration de FinTrack',
@@ -433,6 +437,10 @@ export const translations = {
       m_notes: 'Notes', m_notesPh: 'Optional', m_cancel: 'Cancel', m_save: 'Save', m_create: 'Create',
       history: 'History', linkedLoans: 'Linked loans & receivables', txHistory: 'Transaction history',
       noHistory: 'No activity recorded with this person yet', fromTransactions: 'Transaction', fromLoans: 'Loan/Receivable',
+      merge: 'Merge', mergeTitle: 'Merge a duplicate',
+      mergeText: '"{name}" will be merged into another beneficiary, then removed from the list.',
+      mergeInto: 'Merge into', mergeConfirm: 'Merge',
+      mergeSummary: '{tx} transaction(s) and {loans} loan(s)/receivable(s) will be reassigned to "{target}".',
     },
     settings: {
       title: 'Settings', subtitle: 'FinTrack configuration',
