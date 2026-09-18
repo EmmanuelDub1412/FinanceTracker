@@ -1,7 +1,99 @@
-import React, { useState } from 'react';
-import { Users, Plus, Pencil, Trash2, Phone, Mail, Landmark, StickyNote } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Users, Plus, Pencil, Trash2, Phone, Mail, Landmark, StickyNote, History, ArrowDownCircle, ArrowUpCircle, HandCoins } from 'lucide-react';
 import { genId } from '../firestoreApi';
+import { fmt } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
+
+// Historique unifie d'une personne : combine les transactions ou elle est
+// taguee comme beneficiaire ET les paiements enregistres sur les prets/
+// creances/dettes a son nom, trie par date decroissante. Permet de
+// retrouver tous les mouvements avec cette personne au meme endroit, quel
+// que soit le module d'ou ils viennent.
+function HistoryModal({ beneficiary, transactions = [], loans = [], onClose }) {
+  const { t, lang } = useLanguage();
+
+  const linkedLoans = useMemo(() => loans.filter(l => l.name === beneficiary.name), [loans, beneficiary.name]);
+
+  const feed = useMemo(() => {
+    const txRows = transactions
+      .filter(tx => tx.beneficiary === beneficiary.name)
+      .map(tx => ({
+        id: `tx-${tx.id}`, date: tx.date,
+        label: tx.description || t(`loansCredits.kind_${tx.txType}`) || tx.txType,
+        amount: Number(tx.amount) || 0, currency: tx.currency,
+        positive: tx.txType === 'income',
+        sub: t('beneficiaries.fromTransactions'),
+      }));
+    const loanRows = linkedLoans.flatMap(l => (l.paymentHistory || []).map((p, i) => ({
+      id: `loan-${l.id}-${i}`, date: p.date,
+      label: `${t(`loansCredits.kind_${l.kind}`)} : ${l.name}`,
+      amount: Number(p.amount) || 0, currency: l.currency,
+      positive: l.kind === 'receivable' || l.kind === 'bond',
+      sub: t('beneficiaries.fromLoans'),
+    })));
+    return [...txRows, ...loanRows].sort((a, b) => b.date.localeCompare(a.date));
+  }, [transactions, linkedLoans, beneficiary.name, t]);
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 560 }}>
+        <div className="modal-hd">
+          <div className="modal-ttl"><History size={18} style={{ color: 'var(--g1)' }} /> {beneficiary.name}</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          {linkedLoans.length > 0 && (
+            <div className="fg">
+              <label className="fl">{t('beneficiaries.linkedLoans')}</label>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {linkedLoans.map(l => (
+                  <div key={l.id} className="fb" style={{ fontSize: 12.5, padding: '6px 9px', background: 'var(--bg3)', borderRadius: 6 }}>
+                    <span className="flex g8" style={{ alignItems: 'center' }}>
+                      <HandCoins size={12} style={{ color: 'var(--text3)' }} /> {t(`loansCredits.kind_${l.kind}`)}
+                    </span>
+                    <span style={{ fontWeight: 600 }}>
+                      {fmt(Number(l.kind === 'loan' ? l.remainingBalance : l.amount) || 0, l.currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="fg">
+            <label className="fl">{t('beneficiaries.txHistory')}</label>
+            {feed.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text3)' }}>{t('beneficiaries.noHistory')}</div>
+            ) : (
+              <div style={{ display: 'grid', gap: 2, maxHeight: 320, overflowY: 'auto' }}>
+                {feed.map(row => (
+                  <div key={row.id} className="fb" style={{ fontSize: 12.5, padding: '7px 2px', borderBottom: '1px solid var(--border)' }}>
+                    <span className="flex g8" style={{ alignItems: 'center' }}>
+                      {row.positive ? <ArrowDownCircle size={13} style={{ color: 'var(--g1)' }} /> : <ArrowUpCircle size={13} style={{ color: 'var(--red)' }} />}
+                      <span>
+                        <div>{row.label}</div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text3)' }}>
+                          {new Date(row.date + 'T00:00:00').toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')} · {row.sub}
+                        </div>
+                      </span>
+                    </span>
+                    <span style={{ fontWeight: 600, color: row.positive ? 'var(--g1)' : 'var(--red)' }}>
+                      {row.positive ? '+' : '-'}{fmt(row.amount, row.currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('beneficiaries.m_cancel')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BeneficiaryModal({ item, onSave, onClose }) {
   const { t } = useLanguage();
@@ -87,10 +179,11 @@ function BeneficiaryModal({ item, onSave, onClose }) {
   );
 }
 
-export default function Beneficiaries({ beneficiaries, onAdd, onUpdate, onDelete }) {
+export default function Beneficiaries({ beneficiaries, transactions = [], loans = [], onAdd, onUpdate, onDelete }) {
   const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [viewingHistory, setViewingHistory] = useState(null);
 
   const handleSave = (data) => { editing ? onUpdate(editing.id, data) : onAdd(data); setShowModal(false); setEditing(null); };
 
@@ -151,7 +244,8 @@ export default function Beneficiaries({ beneficiaries, onAdd, onUpdate, onDelete
                 </div>
               )}
 
-              <div className="flex g8 mt12">
+              <div className="flex g8 mt12" style={{ flexWrap: 'wrap' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setViewingHistory(b)}><History size={12} /> {t('beneficiaries.history')}</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(b); setShowModal(true); }}><Pencil size={12} /> {t('beneficiaries.edit_')}</button>
                 <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm(t('beneficiaries.deleteConfirm'))) onDelete(b.id); }}><Trash2 size={12} /></button>
               </div>
@@ -161,6 +255,7 @@ export default function Beneficiaries({ beneficiaries, onAdd, onUpdate, onDelete
       )}
 
       {showModal && <BeneficiaryModal item={editing} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
+      {viewingHistory && <HistoryModal beneficiary={viewingHistory} transactions={transactions} loans={loans} onClose={() => setViewingHistory(null)} />}
     </div>
   );
 }

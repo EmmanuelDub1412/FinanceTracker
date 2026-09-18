@@ -39,7 +39,7 @@ function daysUntil(dateStr) {
   return Math.round((d - n) / 86400000);
 }
 
-function LoanModal({ item, defaultKind, onSave, onClose }) {
+function LoanModal({ item, defaultKind, beneficiaries = [], onAddBeneficiary, onSave, onClose }) {
   const { t } = useLanguage();
   const [form, setForm] = useState(item || {
     kind: defaultKind || 'receivable',
@@ -51,6 +51,21 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const kind = form.kind;
+
+  // Le nom d'une creance/dette est rattache a la meme liste de beneficiaires
+  // que les transactions, pour eviter les doublons (Christopher / christoph
+  // etc.) et pouvoir retrouver l'historique complet d'une personne.
+  const [addingName, setAddingName] = useState(false);
+  const [newNameInput, setNewNameInput] = useState('');
+  const confirmNewName = () => {
+    const name = newNameInput.trim();
+    if (!name) { setAddingName(false); return; }
+    const exists = beneficiaries.find(b => b.name.toLowerCase() === name.toLowerCase());
+    if (!exists) onAddBeneficiary?.({ name });
+    set('name', name);
+    setNewNameInput('');
+    setAddingName(false);
+  };
 
   const canSave = form.name && (
     (kind === 'receivable' || kind === 'payable') ? form.amount :
@@ -99,7 +114,27 @@ function LoanModal({ item, defaultKind, onSave, onClose }) {
 
           <div className="fg">
             <label className="fl">{t('loansCredits.m_name')}</label>
-            <input className="fi" value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('loansCredits.m_namePh')} />
+            {addingName ? (
+              <div className="flex g8">
+                <input className="fi" autoFocus value={newNameInput} onChange={e => setNewNameInput(e.target.value)}
+                  placeholder={t('loansCredits.m_namePh')}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmNewName(); } if (e.key === 'Escape') { setAddingName(false); setNewNameInput(''); } }} />
+                <button type="button" className="btn btn-primary btn-sm" onClick={confirmNewName}>{t('transactions.confirm')}</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setAddingName(false); setNewNameInput(''); }}>✕</button>
+              </div>
+            ) : (
+              <select className="fs" value={form.name} onChange={e => {
+                if (e.target.value === '__new__') { setAddingName(true); return; }
+                set('name', e.target.value);
+              }}>
+                <option value="">{t('transactions.select')}</option>
+                {form.name && !beneficiaries.find(b => b.name === form.name) && (
+                  <option value={form.name}>{form.name}</option>
+                )}
+                {beneficiaries.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                <option value="__new__">+ {t('transactions.newBeneficiary')}</option>
+              </select>
+            )}
           </div>
 
           {(kind === 'receivable' || kind === 'payable') && (
@@ -374,7 +409,7 @@ function PaymentModal({ item, accounts, rate, onSave, onClose }) {
   );
 }
 
-export default function LoansCredits({ loans, accounts = [], settings, onAdd, onUpdate, onDelete, onAddTransaction }) {
+export default function LoansCredits({ loans, accounts = [], settings, beneficiaries = [], onAddBeneficiary, onAdd, onUpdate, onDelete, onAddTransaction }) {
   const { t, lang } = useLanguage();
   const rate = Number(settings?.usdToHtg) || 130;
   const [showModal, setShowModal] = useState(false);
@@ -706,7 +741,7 @@ export default function LoansCredits({ loans, accounts = [], settings, onAdd, on
         </div>
       )}
 
-      {showModal && <LoanModal item={editing} defaultKind={newKind} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
+      {showModal && <LoanModal item={editing} defaultKind={newKind} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
       {payingItem && <PaymentModal item={payingItem} accounts={accounts} rate={rate} onSave={(data) => recordPayment(payingItem, data)} onClose={() => setPayingItem(null)} />}
     </div>
   );

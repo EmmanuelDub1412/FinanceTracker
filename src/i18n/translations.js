@@ -200,6 +200,8 @@ export const translations = {
       m_accounts: 'Comptes', m_addAccount: 'Ajouter un compte', m_noAccounts: 'Aucun compte ajouté',
       m_accountLabelPh: 'Libellé (ex. Compte principal)', m_bankPh: 'Banque', m_accountNumberPh: 'Numéro de compte',
       m_notes: 'Notes', m_notesPh: 'Optionnel', m_cancel: 'Annuler', m_save: 'Sauvegarder', m_create: 'Créer',
+      history: 'Historique', linkedLoans: 'Prêts & créances liés', txHistory: 'Historique des mouvements',
+      noHistory: 'Aucun mouvement enregistré avec cette personne', fromTransactions: 'Transaction', fromLoans: 'Prêt/Créance',
     },
     settings: {
       title: 'Paramètres', subtitle: 'Configuration de FinTrack',
@@ -429,6 +431,8 @@ export const translations = {
       m_accounts: 'Accounts', m_addAccount: 'Add an account', m_noAccounts: 'No account added',
       m_accountLabelPh: 'Label (e.g. Main account)', m_bankPh: 'Bank', m_accountNumberPh: 'Account number',
       m_notes: 'Notes', m_notesPh: 'Optional', m_cancel: 'Cancel', m_save: 'Save', m_create: 'Create',
+      history: 'History', linkedLoans: 'Linked loans & receivables', txHistory: 'Transaction history',
+      noHistory: 'No activity recorded with this person yet', fromTransactions: 'Transaction', fromLoans: 'Loan/Receivable',
     },
     settings: {
       title: 'Settings', subtitle: 'FinTrack configuration',
