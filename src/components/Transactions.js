@@ -418,7 +418,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
           )}
 
           <div className="fg">
-            <label className="fl">{t('transactions.fee')} ({form.txType==='transfer' ? (debitAcc?.currency || form.currency) : form.currency}) — {t('transactions.optional')}</label>
+            <label className="fl">{t('transactions.fee')} ({form.txType==='transfer' ? (debitAcc?.currency || form.currency) : form.currency}, {t('transactions.optional').toLowerCase()})</label>
             <input className="fi" type="number" value={form.fee} onChange={e=>set('fee',e.target.value)} placeholder="0"/>
           </div>
 

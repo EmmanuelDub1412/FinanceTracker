@@ -46,7 +46,7 @@ export default function useDueDateNotifications(loans = [], settings, t) {
       if (localStorage.getItem(key)) return;
 
       try {
-        new Notification(`FinTrack — ${l.name}`, {
+        new Notification(`FinTrack : ${l.name}`, {
           body: dLeft < 0
             ? (t ? t('loansCredits.overdue') : 'Overdue')
             : `${t ? t('loansCredits.dueOn') : 'Due'} : ${dueDate}`,
