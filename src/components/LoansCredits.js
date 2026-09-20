@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw, Layers,
 } from 'lucide-react';
 import { fmt, toHTG, fmtHTG, today, toLocalISODate, convertAmount } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -38,6 +38,12 @@ function daysUntil(dateStr) {
   const n = new Date(); n.setHours(0, 0, 0, 0);
   return Math.round((d - n) / 86400000);
 }
+
+// Arrondi a 2 decimales : la conversion de devise (paiement dans une devise
+// differente de celle de l'element) peut introduire des restes flottants
+// infimes (0.0000000002 au lieu de 0), qui empecheraient sinon le solde
+// d'atteindre exactement zero et l'element de passer a "Solde".
+const round2 = (n) => Math.round(n * 100) / 100;
 
 function LoanModal({ item, defaultKind, beneficiaries = [], onAddBeneficiary, onSave, onClose }) {
   const { t } = useLanguage();
@@ -421,6 +427,140 @@ function PaymentModal({ item, accounts, rate, onSave, onClose }) {
   );
 }
 
+// Paiement groupe : une seule vraie transaction (celle qui correspond a ce
+// qui s'est reellement passe a la banque) qui rembourse plusieurs prets/
+// creances/dettes d'une meme personne en une fois. On choisit d'abord le
+// sens (argent recu vs argent verse, on ne mélange pas les deux), puis la
+// personne, puis on repartit le montant total entre les elements sélectionnés.
+function MultiPaymentModal({ enrichedLoans, accounts, rate, onSave, onClose }) {
+  const { t } = useLanguage();
+  const [direction, setDirection] = useState('in'); // 'in' = on me rembourse, 'out' = je rembourse
+  const [name, setName] = useState('');
+  const [selected, setSelected] = useState({}); // { [loanId]: allocationString }
+  const [date, setDate] = useState(today());
+  const [account, setAccount] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const kindsForDirection = direction === 'in' ? ['receivable'] : ['payable', 'loan'];
+  const names = useMemo(
+    () => [...new Set(enrichedLoans.filter(l => kindsForDirection.includes(l.kind) && !l.isSettled).map(l => l.name))].sort((a, b) => a.localeCompare(b)),
+    [enrichedLoans, direction]
+  );
+  const eligible = useMemo(
+    () => enrichedLoans.filter(l => l.name === name && kindsForDirection.includes(l.kind) && !l.isSettled),
+    [enrichedLoans, name, direction]
+  );
+
+  const toggle = (l) => setSelected(s => {
+    const next = { ...s };
+    if (l.id in next) delete next[l.id];
+    else next[l.id] = String(l.nativeAmount);
+    return next;
+  });
+  const setAlloc = (id, v) => setSelected(s => ({ ...s, [id]: v }));
+
+  const selectedAcc = accounts.find(a => a.id === account);
+  const allocations = eligible.filter(l => l.id in selected).map(l => ({ item: l, amount: Number(selected[l.id]) || 0 }));
+  const totalInAccountCurrency = selectedAcc
+    ? allocations.reduce((s, a) => s + convertAmount(a.amount, a.item.currency, selectedAcc.currency, rate), 0)
+    : 0;
+
+  const canSave = allocations.length > 0 && allocations.every(a => a.amount > 0) && account;
+
+  const handleSave = () => {
+    if (!canSave) return;
+    onSave({ direction, allocations, date, account, notes: notes.trim() });
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-hd">
+          <div className="modal-ttl"><Layers size={18} style={{ color: 'var(--g1)' }} /> {t('loansCredits.multiTitle')}</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          <div className="fg">
+            <label className="fl">{t('loansCredits.multiDirection')}</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
+              <button type="button" className="btn btn-sm" onClick={() => { setDirection('in'); setName(''); setSelected({}); }}
+                style={{ justifyContent: 'center', border: `2px solid ${direction === 'in' ? 'var(--g1)' : 'var(--border)'}`, background: direction === 'in' ? 'var(--g-bg)' : 'var(--bg3)', color: direction === 'in' ? 'var(--g1)' : 'var(--text2)' }}>
+                {t('loansCredits.multiDirectionIn')}
+              </button>
+              <button type="button" className="btn btn-sm" onClick={() => { setDirection('out'); setName(''); setSelected({}); }}
+                style={{ justifyContent: 'center', border: `2px solid ${direction === 'out' ? 'var(--g1)' : 'var(--border)'}`, background: direction === 'out' ? 'var(--g-bg)' : 'var(--bg3)', color: direction === 'out' ? 'var(--g1)' : 'var(--text2)' }}>
+                {t('loansCredits.multiDirectionOut')}
+              </button>
+            </div>
+          </div>
+
+          <div className="fg">
+            <label className="fl">{t('loansCredits.m_name')}</label>
+            <select className="fs" value={name} onChange={e => { setName(e.target.value); setSelected({}); }}>
+              <option value="">{t('transactions.select')}</option>
+              {names.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+
+          {name && (
+            <div className="fg">
+              <label className="fl">{t('loansCredits.multiSelect')}</label>
+              {eligible.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--text3)' }}>{t('loansCredits.noneFound')}</div>
+              ) : (
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {eligible.map(l => (
+                    <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, border: '1px solid var(--border)', borderRadius: 8, background: l.id in selected ? 'var(--g-bg)' : 'var(--bg3)' }}>
+                      <input type="checkbox" checked={l.id in selected} onChange={() => toggle(l)} />
+                      <div style={{ flex: 1, fontSize: 12.5 }}>
+                        {t(`loansCredits.kind_${l.kind}`)}
+                        <div style={{ fontSize: 10.5, color: 'var(--text3)' }}>{t('loansCredits.remaining')} : {fmt(l.nativeAmount, l.currency)}</div>
+                      </div>
+                      {l.id in selected && (
+                        <input className="fi" style={{ width: 110 }} type="number" value={selected[l.id]}
+                          onChange={e => setAlloc(l.id, e.target.value)} placeholder="0" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="fg">
+            <label className="fl">{direction === 'in' ? t('loansCredits.pm_accountCredited') : t('loansCredits.pm_accountDebited')}</label>
+            <select className="fs" value={account} onChange={e => setAccount(e.target.value)}>
+              <option value="">{t('loansCredits.pm_selectAccount')}</option>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+            </select>
+          </div>
+
+          {selectedAcc && allocations.length > 0 && (
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+              {t('loansCredits.multiTotal')} : {fmt(totalInAccountCurrency, selectedAcc.currency)}
+            </div>
+          )}
+
+          <div className="fg">
+            <label className="fl">{t('loansCredits.pm_date')}</label>
+            <input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+
+          <div className="fg">
+            <label className="fl">{t('loansCredits.pm_note')}</label>
+            <input className="fi" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('loansCredits.pm_notePh')} />
+          </div>
+
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('loansCredits.m_cancel')}</button>
+            <button className="btn btn-primary" disabled={!canSave} onClick={handleSave}>{t('loansCredits.pm_save')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LoansCredits({ loans, accounts = [], settings, beneficiaries = [], onAddBeneficiary, onAdd, onUpdate, onDelete, onAddTransaction }) {
   const { t, lang } = useLanguage();
   const rate = Number(settings?.usdToHtg) || 130;
@@ -432,6 +572,7 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
   const [dispCur, setDispCur] = useState('HTG');
   const [filterCurrency, setFilterCurrency] = useState('');
   const [filterName, setFilterName] = useState('');
+  const [multiPayOpen, setMultiPayOpen] = useState(false);
   const fmtC = (v) => dispCur === 'USD' ? fmt(v / rate, 'USD') : fmt(v, 'HTG');
 
   const accMap = useMemo(() => Object.fromEntries(accounts.map(a => [a.id, a.name])), [accounts]);
@@ -472,12 +613,6 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
     if (item.kind === 'bond') historyEntry.type = type;
     const history = [...(item.paymentHistory || []), historyEntry];
 
-    // Arrondi a 2 decimales : la conversion de devise (paiement dans une
-    // devise differente de celle de l'element) peut introduire des restes
-    // flottants infimes (0.0000000002 au lieu de 0), qui empecheraient sinon
-    // le solde d'atteindre exactement zero et l'element de passer a "Solde".
-    const round2 = (n) => Math.round(n * 100) / 100;
-
     if (item.kind === 'subscription') {
       onUpdate(item.id, { nextPaymentDate: advanceDate(item.nextPaymentDate, item.frequency), paymentHistory: history });
     } else if (item.kind === 'loan') {
@@ -495,6 +630,42 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
       }
     }
     setPayingItem(null);
+  };
+
+  // Paiement groupe : une seule transaction reelle (celle qui correspond a
+  // ce qui s'est passe a la banque) qui repartit un montant total entre
+  // plusieurs prets/creances/dettes de la meme personne. Chaque element
+  // recoit sa propre part dans sa propre devise (allocations[i].amount),
+  // convertie au besoin pour former le montant unique poste sur le compte.
+  const recordMultiPayment = ({ direction, allocations, date, account, notes }) => {
+    const isIncome = direction === 'in';
+    const selectedAcc = accounts.find(a => a.id === account);
+    const total = allocations.reduce((s, a) => s + convertAmount(a.amount, a.item.currency, selectedAcc?.currency || 'HTG', rate), 0);
+    const name = allocations[0]?.item.name || '';
+    const desc = `${isIncome ? 'Paiement groupé reçu' : 'Paiement groupé effectué'} : ${name} (${allocations.length})`;
+
+    onAddTransaction?.({
+      date, description: desc, category: isIncome ? 'REV-DIV' : 'DEP-REM',
+      txType: isIncome ? 'income' : 'expense',
+      debitAccount: isIncome ? '' : account,
+      creditAccount: isIncome ? account : '',
+      amount: round2(total), currency: selectedAcc?.currency || 'HTG',
+      status: 'confirmed', beneficiary: '', notes: notes || '',
+    });
+
+    allocations.forEach(({ item, amount }) => {
+      const historyEntry = { date, amount, account };
+      const history = [...(item.paymentHistory || []), historyEntry];
+      if (item.kind === 'loan') {
+        const newBalance = Math.max(0, round2((Number(item.remainingBalance) || 0) - amount));
+        onUpdate(item.id, { remainingBalance: newBalance, paymentHistory: history });
+      } else {
+        const newAmount = Math.max(0, round2((Number(item.amount) || 0) - amount));
+        onUpdate(item.id, { amount: newAmount, paymentHistory: history });
+      }
+    });
+
+    setMultiPayOpen(false);
   };
 
   const enriched = useMemo(() => loans.map(l => {
@@ -582,6 +753,9 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
         <div className="flex g8">
           <button className="lang-toggle" onClick={() => setDispCur(c => c === 'HTG' ? 'USD' : 'HTG')} title="HTG / USD">
             {dispCur}
+          </button>
+          <button className="btn btn-ghost" onClick={() => setMultiPayOpen(true)}>
+            <Layers size={15} /> {t('loansCredits.multiTitle')}
           </button>
           <button className="btn btn-primary" onClick={() => openNew('receivable')}>
             <Plus size={15} /> {t('loansCredits.add')}
@@ -760,6 +934,7 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
 
       {showModal && <LoanModal item={editing} defaultKind={newKind} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
       {payingItem && <PaymentModal item={payingItem} accounts={accounts} rate={rate} onSave={(data) => recordPayment(payingItem, data)} onClose={() => setPayingItem(null)} />}
+      {multiPayOpen && <MultiPaymentModal enrichedLoans={enriched} accounts={accounts} rate={rate} onSave={recordMultiPayment} onClose={() => setMultiPayOpen(false)} />}
     </div>
   );
 }

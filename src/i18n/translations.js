@@ -178,6 +178,9 @@ export const translations = {
       pm_accountCredited: 'Compte crédité (argent reçu)', pm_accountDebited: 'Compte débité (argent versé)',
       pm_selectAccount: 'Sélectionner un compte', pm_note: 'Note (optionnel)', pm_notePh: 'ex. reçu en espèces',
       pm_save: 'Enregistrer', pm_typeCapital: 'Capital', pm_typeInterest: 'Intérêt',
+      multiTitle: 'Paiement groupé', multiDirection: 'Sens du paiement',
+      multiDirectionIn: 'On me rembourse', multiDirectionOut: 'Je rembourse',
+      multiSelect: 'Sélectionner les éléments à régler', multiTotal: 'Total à débiter/créditer',
     },
     budget: {
       title: 'Budget', subtitle: 'Surveille tes dépenses par catégorie, semaine par semaine ou mois par mois',
@@ -414,6 +417,9 @@ export const translations = {
       pm_accountCredited: 'Account credited (money received)', pm_accountDebited: 'Account debited (money paid)',
       pm_selectAccount: 'Select an account', pm_note: 'Note (optional)', pm_notePh: 'e.g. received in cash',
       pm_save: 'Save', pm_typeCapital: 'Capital', pm_typeInterest: 'Interest',
+      multiTitle: 'Group payment', multiDirection: 'Payment direction',
+      multiDirectionIn: 'I am being repaid', multiDirectionOut: 'I am repaying',
+      multiSelect: 'Select items to settle', multiTotal: 'Total to debit/credit',
     },
     budget: {
       title: 'Budget', subtitle: 'Track your spending by category, week by week or month by month',
