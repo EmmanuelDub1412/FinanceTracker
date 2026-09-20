@@ -184,6 +184,9 @@ export const translations = {
       multiTitle: 'Paiement groupé', multiDirection: 'Sens du paiement',
       multiDirectionIn: 'On me rembourse', multiDirectionOut: 'Je rembourse',
       multiSelect: 'Sélectionner les éléments à régler', multiTotal: 'Total à débiter/créditer',
+      trash: 'Corbeille', trashEmpty: 'La corbeille est vide',
+      restore: 'Restaurer', deleteForever: 'Supprimer définitivement',
+      deleteForeverConfirm: 'Supprimer définitivement cet élément ? Cette action est irréversible.',
     },
     budget: {
       title: 'Budget', subtitle: 'Surveille tes dépenses par catégorie, semaine par semaine ou mois par mois',
@@ -426,6 +429,9 @@ export const translations = {
       multiTitle: 'Group payment', multiDirection: 'Payment direction',
       multiDirectionIn: 'I am being repaid', multiDirectionOut: 'I am repaying',
       multiSelect: 'Select items to settle', multiTotal: 'Total to debit/credit',
+      trash: 'Trash', trashEmpty: 'Trash is empty',
+      restore: 'Restore', deleteForever: 'Delete forever',
+      deleteForeverConfirm: 'Permanently delete this item? This cannot be undone.',
     },
     budget: {
       title: 'Budget', subtitle: 'Track your spending by category, week by week or month by month',

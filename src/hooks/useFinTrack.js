@@ -186,7 +186,10 @@ export default function useFinTrack() {
   // loans & credits (creances, dettes, prets, obligations)
   const addLoan    = (data) => withSync(() => db.append('loans', { ...data, id: genId() }));
   const updateLoan = (id, data) => withSync(() => db.update('loans', id, data));
-  const deleteLoan = (id) => withSync(() => db.delete('loans', id));
+  // Meme principe de corbeille que pour les transactions.
+  const deleteLoan = (id) => withSync(() => db.update('loans', id, { deleted: true, deletedAt: new Date().toISOString() }));
+  const restoreLoan = (id) => withSync(() => db.update('loans', id, { deleted: false, deletedAt: null }));
+  const permanentlyDeleteLoan = (id) => withSync(() => db.delete('loans', id));
   // beneficiaires (liste reutilisable dans les transactions)
   const addBeneficiary    = (data) => withSync(() => db.append('beneficiaries', { ...data, id: genId() }));
   const updateBeneficiary = (id, data) => withSync(() => db.update('beneficiaries', id, data));
@@ -204,22 +207,24 @@ export default function useFinTrack() {
     await db.setSetting(key, value);
     setSettings(s => ({ ...s, [key]: value }));
   };
-  // Le reste de l'app ne voit que les transactions actives ; celles a la
-  // corbeille (deleted:true) sont exposees a part pour la vue "Corbeille".
+  // Le reste de l'app ne voit que les transactions/prets actifs ; ceux a la
+  // corbeille (deleted:true) sont exposes a part pour la vue "Corbeille".
   const activeTransactions = transactions.filter(t => !t.deleted);
   const trashedTransactions = transactions.filter(t => t.deleted);
+  const activeLoans = loans.filter(l => !l.deleted);
+  const trashedLoans = loans.filter(l => l.deleted);
 
   return {
     // auth
     authState, user, gapiReady: true, login, loginWithEmail, signUp, forgotPassword, logout,
     // data
-    accounts, transactions: activeTransactions, trashedTransactions, savings, loans, beneficiaries, budgets, categories, settings,
+    accounts, transactions: activeTransactions, trashedTransactions, savings, loans: activeLoans, trashedLoans, beneficiaries, budgets, categories, settings,
     loading, syncing, error, refresh,
     // CRUD
     addAccount, updateAccount, deleteAccount,
     addTransaction, updateTransaction, deleteTransaction, restoreTransaction, permanentlyDeleteTransaction,
     addSaving, updateSaving, deleteSaving,
-    addLoan, updateLoan, deleteLoan,
+    addLoan, updateLoan, deleteLoan, restoreLoan, permanentlyDeleteLoan,
     addBeneficiary, updateBeneficiary, deleteBeneficiary,
     addBudget, updateBudget, deleteBudget,
     addCategory,

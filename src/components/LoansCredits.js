@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   HandCoins, Landmark, CalendarClock, Banknote, Plus, Pencil, Trash2,
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw, Layers,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, CheckCircle2, History, ChevronDown, ChevronUp, RefreshCw, Layers, RotateCcw,
 } from 'lucide-react';
 import { fmt, toHTG, fmtHTG, today, toLocalISODate, convertAmount } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -561,7 +561,54 @@ function MultiPaymentModal({ enrichedLoans, accounts, rate, onSave, onClose }) {
   );
 }
 
-export default function LoansCredits({ loans, accounts = [], settings, beneficiaries = [], onAddBeneficiary, onAdd, onUpdate, onDelete, onAddTransaction }) {
+// Corbeille : les prets/creances/dettes supprimes ne sont pas effaces tout
+// de suite (voir useFinTrack.deleteLoan), on peut les restaurer ou les
+// supprimer definitivement depuis cette vue.
+function LoanTrashModal({ items, onRestore, onPermanentDelete, onClose }) {
+  const { t } = useLanguage();
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 560 }}>
+        <div className="modal-hd">
+          <div className="modal-ttl"><Trash2 size={18} style={{ color: 'var(--g1)' }} /> {t('loansCredits.trash')} ({items.length})</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          {items.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--text3)', textAlign: 'center', padding: '20px 0' }}>{t('loansCredits.trashEmpty')}</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 6, maxHeight: 400, overflowY: 'auto' }}>
+              {items.map(l => (
+                <div key={l.id} className="fb" style={{ fontSize: 12.5, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{l.name}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--text3)' }}>
+                      {t(`loansCredits.kind_${l.kind}`)} · {fmt(Number(l.kind === 'loan' ? l.remainingBalance : l.amount) || 0, l.currency)}
+                    </div>
+                  </div>
+                  <div className="flex g8">
+                    <button className="btn btn-ghost btn-sm" title={t('loansCredits.restore')} onClick={() => onRestore(l.id)}>
+                      <RotateCcw size={12} />
+                    </button>
+                    <button className="btn btn-danger btn-sm" title={t('loansCredits.deleteForever')}
+                      onClick={() => { if (window.confirm(t('loansCredits.deleteForeverConfirm'))) onPermanentDelete(l.id); }}>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('loansCredits.m_cancel')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LoansCredits({ loans, accounts = [], settings, beneficiaries = [], onAddBeneficiary, onAdd, onUpdate, onDelete, onAddTransaction, trashedLoans = [], onRestore, onPermanentDelete }) {
   const { t, lang } = useLanguage();
   const rate = Number(settings?.usdToHtg) || 130;
   const [showModal, setShowModal] = useState(false);
@@ -573,6 +620,7 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
   const [filterCurrency, setFilterCurrency] = useState('');
   const [filterName, setFilterName] = useState('');
   const [multiPayOpen, setMultiPayOpen] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
   const fmtC = (v) => dispCur === 'USD' ? fmt(v / rate, 'USD') : fmt(v, 'HTG');
 
   const accMap = useMemo(() => Object.fromEntries(accounts.map(a => [a.id, a.name])), [accounts]);
@@ -757,6 +805,9 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
           <button className="btn btn-ghost" onClick={() => setMultiPayOpen(true)}>
             <Layers size={15} /> {t('loansCredits.multiTitle')}
           </button>
+          <button className="btn btn-ghost" onClick={() => setShowTrash(true)} title={t('loansCredits.trash')}>
+            <Trash2 size={15} /> {t('loansCredits.trash')}{trashedLoans.length > 0 ? ` (${trashedLoans.length})` : ''}
+          </button>
           <button className="btn btn-primary" onClick={() => openNew('receivable')}>
             <Plus size={15} /> {t('loansCredits.add')}
           </button>
@@ -935,6 +986,7 @@ export default function LoansCredits({ loans, accounts = [], settings, beneficia
       {showModal && <LoanModal item={editing} defaultKind={newKind} beneficiaries={beneficiaries} onAddBeneficiary={onAddBeneficiary} onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null); }} />}
       {payingItem && <PaymentModal item={payingItem} accounts={accounts} rate={rate} onSave={(data) => recordPayment(payingItem, data)} onClose={() => setPayingItem(null)} />}
       {multiPayOpen && <MultiPaymentModal enrichedLoans={enriched} accounts={accounts} rate={rate} onSave={recordMultiPayment} onClose={() => setMultiPayOpen(false)} />}
+      {showTrash && <LoanTrashModal items={trashedLoans} onRestore={onRestore} onPermanentDelete={onPermanentDelete} onClose={() => setShowTrash(false)} />}
     </div>
   );
 }
