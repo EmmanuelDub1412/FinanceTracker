@@ -218,7 +218,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
   const rate = Number(settings?.usdToHtg)||130;
   const [form, setForm] = useState(tx || {
     date:today(), description:'', category:'DEP-ALI', txType:'expense',
-    debitAccount:'', creditAccount:'', amount:'', currency:'HTG', creditAmount:'',
+    debitAccount:'', creditAccount:'', amount:'', currency:'HTG', creditAmount:'', fee:'',
     status:'confirmed', beneficiary:'', notes:'',
     receiptUrl:'', receiptPath:'', receiptName:'', receiptType:'',
   });
@@ -282,7 +282,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
 
   const handleSave = async () => {
     if (!canSave) return;
-    let payload = { ...form, amount: Number(form.amount) };
+    let payload = { ...form, amount: Number(form.amount), fee: Number(form.fee) || 0 };
     if (crossCurrency) {
       payload.creditAmount = Number(form.creditAmount) || 0;
     } else if ('creditAmount' in payload) {
@@ -416,6 +416,11 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
               </div>
             </div>
           )}
+
+          <div className="fg">
+            <label className="fl">{t('transactions.fee')} ({form.txType==='transfer' ? (debitAcc?.currency || form.currency) : form.currency}) — {t('transactions.optional')}</label>
+            <input className="fi" type="number" value={form.fee} onChange={e=>set('fee',e.target.value)} placeholder="0"/>
+          </div>
 
           {form.txType!=='transfer' && (
             <div className="fg">
@@ -635,13 +640,13 @@ export default function Transactions({ transactions, accounts, settings, categor
   };
   const exportCsv = () => {
     const header = [t('transactions.col_date'), t('transactions.col_desc'), t('transactions.col_cat'),
-      t('transactions.account'), t('transactions.col_amount'), t('transactions.currency'),
+      t('transactions.account'), t('transactions.col_amount'), t('transactions.currency'), t('transactions.fee'),
       t('transactions.col_status'), t('transactions.beneficiary')];
     const rows = sorted.map(tx => {
       const accId = tx.txType === 'income' ? tx.creditAccount : tx.debitAccount;
       return [
         tx.date, tx.description || '', catLabelOf(tx.category),
-        accMap[accId] || '', tx.amount, tx.currency,
+        accMap[accId] || '', tx.amount, tx.currency, tx.fee || 0,
         t(`status.${tx.status || 'confirmed'}`), tx.beneficiary || '',
       ];
     });
@@ -775,6 +780,7 @@ export default function Transactions({ transactions, accounts, settings, categor
                         <td className={`tr ${isIn?'tx-in':tx.txType==='transfer'?'tx-tr':'tx-out'}`} style={{fontWeight:700,fontSize:13}}>
                           {isIn?'+':tx.txType==='transfer'?'':'-'}{fmtHTG(amtHTG)}
                           {tx.currency==='USD'&&<div style={{fontSize:10,fontWeight:500,color:'var(--text3)'}}>{fmt(Number(tx.amount),'USD')}</div>}
+                          {Number(tx.fee)>0&&<div style={{fontSize:10,fontWeight:500,color:'var(--text3)'}}>{t('transactions.fee')}: {fmt(Number(tx.fee),tx.currency)}</div>}
                         </td>
                         <td><span className={`badge ${STATUS_CLS[tx.status]||STATUS_CLS.confirmed}`}>{t(`status.${tx.status||'confirmed'}`)}</span></td>
                         <td>

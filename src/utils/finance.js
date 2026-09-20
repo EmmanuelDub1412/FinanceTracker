@@ -37,19 +37,26 @@ export const monthRange = (d = new Date()) => {
   return { start: toLocalISODate(first), end: toLocalISODate(last) };
 };
 export const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+// Applique une transaction confirmee au solde d'un compte : gere le
+// montant normal/converti (virement cross-devise) ET les frais bancaires
+// eventuels (`fee`), toujours prelevees du cote debite quand il y en a un
+// (virement/depense/epargne), ou deduites du montant credite sinon (revenu
+// avec frais de depot, ex. frais bancaires sur un versement).
+const applyTxToBalance = (balance, t, accountId) => {
+  if (t.creditAccount === accountId) {
+    const feeOnCredit = !t.debitAccount ? (Number(t.fee) || 0) : 0;
+    balance += (Number(t.creditAmount ?? t.amount) || 0) - feeOnCredit;
+  }
+  if (t.debitAccount === accountId) {
+    balance -= (Number(t.amount) || 0) + (Number(t.fee) || 0);
+  }
+  return balance;
+};
 export const computeBalance = (account, transactions) => {
   let balance = Number(account.initialBalance)||0;
   transactions
     .filter(t=>(t.debitAccount===account.id||t.creditAccount===account.id)&&t.status==='confirmed')
-    .forEach(t=>{
-      // Pour un virement entre comptes de devises differentes, `amount` est
-      // le montant debite du compte source (dans sa devise) et `creditAmount`
-      // le montant converti credite au compte destinataire (dans la sienne).
-      // On retombe sur `amount` quand creditAmount n'existe pas (transactions
-      // normales ou virements meme devise).
-      if(t.creditAccount===account.id) balance += Number(t.creditAmount ?? t.amount) || 0;
-      if(t.debitAccount===account.id)  balance -= Number(t.amount) || 0;
-    });
+    .forEach(t=>{ balance = applyTxToBalance(balance, t, account.id); });
   return balance;
 };
 // Solde d'un compte a une date donnee (inclus) : identique a computeBalance
@@ -59,10 +66,7 @@ export const computeBalanceAsOf = (account, transactions, cutoffDate) => {
   let balance = Number(account.initialBalance)||0;
   transactions
     .filter(t=>(t.debitAccount===account.id||t.creditAccount===account.id)&&t.status==='confirmed'&&t.date<=cutoffDate)
-    .forEach(t=>{
-      if(t.creditAccount===account.id) balance += Number(t.creditAmount ?? t.amount) || 0;
-      if(t.debitAccount===account.id)  balance -= Number(t.amount) || 0;
-    });
+    .forEach(t=>{ balance = applyTxToBalance(balance, t, account.id); });
   return balance;
 };
 
@@ -79,7 +83,12 @@ export const accountHistory = (account, transactions) => {
     const direction = t.creditAccount===account.id ? 'in' : 'out';
     // Montant a afficher/appliquer du point de vue de CE compte : pour un
     // virement cross-devise, le cote credite utilise le montant converti.
-    const nativeAmount = direction==='in' ? (Number(t.creditAmount ?? t.amount)||0) : (Number(t.amount)||0);
+    // Les frais (`fee`) sont a la charge du cote debite quand il y en a un,
+    // sinon deduits du montant credite (frais de depot).
+    const fee = Number(t.fee) || 0;
+    const nativeAmount = direction==='in'
+      ? (Number(t.creditAmount ?? t.amount)||0) - (!t.debitAccount ? fee : 0)
+      : (Number(t.amount)||0) + fee;
     if(t.status==='confirmed'){
       if(direction==='in') balance+=nativeAmount; else balance-=nativeAmount;
     }
