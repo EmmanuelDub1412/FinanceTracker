@@ -14,6 +14,7 @@ export const translations = {
       savings: 'Épargne & Objectifs', loan: 'Simulateur de Prêt', investment: 'Simulation de Placement',
       settings: 'Paramètres',
       group_main: 'PRINCIPAL', group_planning: 'PLANIFICATION', group_system: 'SYSTÈME',
+      collapse: 'Réduire le menu', expand: 'Afficher le menu',
     },
     login: {
       welcomeTitle: 'Connectez-vous pour accéder à vos données',
@@ -249,6 +250,7 @@ export const translations = {
       savings: 'Savings & Goals', loan: 'Loan Simulator', investment: 'Investment Simulator',
       settings: 'Settings',
       group_main: 'MAIN', group_planning: 'PLANNING', group_system: 'SYSTEM',
+      collapse: 'Collapse menu', expand: 'Show menu',
     },
     login: {
       welcomeTitle: 'Sign in to access your data',

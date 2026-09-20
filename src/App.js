@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './styles.css';
-import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu, HandCoins, PiggyBank as BudgetIcon, Users } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Target, Calculator, Settings as Cog, TrendingUp, RefreshCw, PiggyBank, Menu, HandCoins, PiggyBank as BudgetIcon, Users, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import useFinTrack from './hooks/useFinTrack';
 import useDueDateNotifications from './hooks/useDueDateNotifications';
 import { useLanguage } from './i18n/LanguageContext';
@@ -31,6 +31,10 @@ const NAV = [
 export default function App() {
   const [page, setPage] = useState('dashboard');
   const [navOpen, setNavOpen] = useState(false);
+  // Repli du panneau de menu (desktop) : preference persistee pour que
+  // l'utilisateur n'ait pas a la refaire a chaque ouverture de l'app.
+  const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('fintrack_nav_collapsed') === '1');
+  useEffect(() => { localStorage.setItem('fintrack_nav_collapsed', navCollapsed ? '1' : '0'); }, [navCollapsed]);
   const ft = useFinTrack();
   const { t, lang, toggleLang } = useLanguage();
   useDueDateNotifications(ft.loans, ft.settings, t);
@@ -62,10 +66,14 @@ export default function App() {
     gapiReady={ft.gapiReady} error={ft.error} loading={ft.loading}/>;
   const renderedGroups = [];
   return (
-    <div className="shell">
+    <div className={`shell ${navCollapsed?'nav-collapsed':''}`}>
       <header className="topbar">
         <button className="menu-toggle" onClick={()=>setNavOpen(v=>!v)} aria-label="Menu">
           <Menu size={22}/>
+        </button>
+        <button className="nav-collapse-toggle" onClick={()=>setNavCollapsed(v=>!v)}
+          title={navCollapsed ? t('nav.expand') : t('nav.collapse')} aria-label="Menu">
+          {navCollapsed ? <PanelLeftOpen size={19}/> : <PanelLeftClose size={19}/>}
         </button>
         <div className="logo" style={{fontWeight:800}}>
           <TrendingUp size={20} style={{color:'var(--g1)'}}/>
@@ -99,8 +107,8 @@ export default function App() {
           return (
             <React.Fragment key={id}>
               {sg && <div className="nav-group-label">{GROUPS[group]}</div>}
-              <div className={`nav-item ${page===id?'active':''}`} onClick={()=>{setPage(id);setNavOpen(false);}}>
-                <Icon size={16}/>{t(labelKey)}
+              <div className={`nav-item ${page===id?'active':''}`} onClick={()=>{setPage(id);setNavOpen(false);}} title={navCollapsed ? t(labelKey) : undefined}>
+                <Icon size={16}/><span className="nav-item-label">{t(labelKey)}</span>
               </div>
             </React.Fragment>
           );
