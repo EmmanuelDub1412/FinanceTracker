@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle,
-  Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown, Download,
+  Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown, Download, RotateCcw,
   Briefcase, BarChart3, Wallet, Handshake, TrendingUp, ShoppingCart, Fuel, Car, Home, HeartPulse,
   GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw, HandCoins, Landmark,
 } from 'lucide-react';
@@ -206,6 +206,58 @@ function LinkLoanPrompt({ kind, data, onConfirm, onClose }) {
           <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
             <button className="btn btn-ghost" onClick={onClose}>{t('transactions.linkLoanSkip')}</button>
             <button className="btn btn-primary" disabled={!name.trim()} onClick={confirm}>{t('transactions.linkLoanConfirm')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Corbeille : les transactions supprimees ne sont pas effacees tout de
+// suite (voir useFinTrack.deleteTransaction), on peut les restaurer ou les
+// supprimer definitivement depuis cette vue.
+function TrashModal({ items, accMap, catLabelOf, onRestore, onPermanentDelete, onClose }) {
+  const { t, lang } = useLanguage();
+  const fmtDate = d => { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }); };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 560 }}>
+        <div className="modal-hd">
+          <div className="modal-ttl"><Trash2 size={18} style={{ color: 'var(--g1)' }} /> {t('transactions.trash')} ({items.length})</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          {items.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--text3)', textAlign: 'center', padding: '20px 0' }}>{t('transactions.trashEmpty')}</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 6, maxHeight: 400, overflowY: 'auto' }}>
+              {items.map(tx => {
+                const accId = tx.txType === 'income' ? tx.creditAccount : tx.debitAccount;
+                return (
+                  <div key={tx.id} className="fb" style={{ fontSize: 12.5, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{tx.description || catLabelOf(tx.category)}</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text3)' }}>
+                        {fmtDate(tx.date)} · {accMap[accId] || '-'} · {fmt(Number(tx.amount) || 0, tx.currency)}
+                      </div>
+                    </div>
+                    <div className="flex g8">
+                      <button className="btn btn-ghost btn-sm" title={t('transactions.restore')} onClick={() => onRestore(tx.id)}>
+                        <RotateCcw size={12} />
+                      </button>
+                      <button className="btn btn-danger btn-sm" title={t('transactions.deleteForever')}
+                        onClick={() => { if (window.confirm(t('transactions.deleteForeverConfirm'))) onPermanentDelete(tx.id); }}>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('transactions.cancel')}</button>
           </div>
         </div>
       </div>
@@ -535,7 +587,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
   );
 }
 
-export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete, onAddLoan }) {
+export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete, onAddLoan, trashedTransactions=[], onRestore, onPermanentDelete }) {
   const { t, tId, lang } = useLanguage();
   const allCats = useMemo(()=>mergeCategories(categories),[categories]);
   const catLabelOf = (id) => tId('categories', id, findCategory(id, categories).label);
@@ -550,6 +602,7 @@ export default function Transactions({ transactions, accounts, settings, categor
   const [sortBy,       setSortBy]     = useState('date');
   const [sortDir,      setSortDir]    = useState('desc');
   const [dispCur,     setDispCur]     = useState('HTG');
+  const [showTrash,   setShowTrash]   = useState(false);
   const rate = Number(settings?.usdToHtg)||130;
   const fmtC = (v) => dispCur==='USD' ? fmt(v/rate,'USD') : fmt(v,'HTG');
 
@@ -675,6 +728,9 @@ export default function Transactions({ transactions, accounts, settings, categor
           </button>
           <button className="btn btn-ghost" onClick={exportCsv} title={t('transactions.exportCsv')}>
             <Download size={15}/> {t('transactions.exportCsv')}
+          </button>
+          <button className="btn btn-ghost" onClick={()=>setShowTrash(true)} title={t('transactions.trash')}>
+            <Trash2 size={15}/> {t('transactions.trash')}{trashedTransactions.length>0?` (${trashedTransactions.length})`:''}
           </button>
           <button className="btn btn-primary" onClick={()=>{setEditing(null);setShowModal(true);}}>
             <Plus size={15}/> {t('transactions.new')}
@@ -802,6 +858,8 @@ export default function Transactions({ transactions, accounts, settings, categor
       {linkPrompt&&<LinkLoanPrompt kind={linkPrompt.kind} data={linkPrompt.data}
         onConfirm={(payload)=>{ onAddLoan(payload); setLinkPrompt(null); }}
         onClose={()=>setLinkPrompt(null)}/>}
+      {showTrash&&<TrashModal items={trashedTransactions} accMap={accMap} catLabelOf={catLabelOf}
+        onRestore={onRestore} onPermanentDelete={onPermanentDelete} onClose={()=>setShowTrash(false)}/>}
 
       <button className="fab-add" onClick={()=>{setEditing(null);setShowModal(true);}} title={t('transactions.new')} aria-label={t('transactions.new')}>
         <Plus size={22}/>

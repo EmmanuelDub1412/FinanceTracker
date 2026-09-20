@@ -173,7 +173,12 @@ export default function useFinTrack() {
   // transactions
   const addTransaction    = (data) => withSync(() => db.append('transactions', { ...data, id: genId() }));
   const updateTransaction = (id, data) => withSync(() => db.update('transactions', id, data));
-  const deleteTransaction = (id) => withSync(() => db.delete('transactions', id));
+  // "Suppression" = corbeille : on marque la transaction comme supprimee au
+  // lieu de l'effacer tout de suite, pour pouvoir la restaurer plus tard.
+  // permanentlyDeleteTransaction fait la vraie suppression definitive.
+  const deleteTransaction = (id) => withSync(() => db.update('transactions', id, { deleted: true, deletedAt: new Date().toISOString() }));
+  const restoreTransaction = (id) => withSync(() => db.update('transactions', id, { deleted: false, deletedAt: null }));
+  const permanentlyDeleteTransaction = (id) => withSync(() => db.delete('transactions', id));
   // savings
   const addSaving    = (data) => withSync(() => db.append('savings', { ...data, id: genId() }));
   const updateSaving = (id, data) => withSync(() => db.update('savings', id, data));
@@ -199,15 +204,20 @@ export default function useFinTrack() {
     await db.setSetting(key, value);
     setSettings(s => ({ ...s, [key]: value }));
   };
+  // Le reste de l'app ne voit que les transactions actives ; celles a la
+  // corbeille (deleted:true) sont exposees a part pour la vue "Corbeille".
+  const activeTransactions = transactions.filter(t => !t.deleted);
+  const trashedTransactions = transactions.filter(t => t.deleted);
+
   return {
     // auth
     authState, user, gapiReady: true, login, loginWithEmail, signUp, forgotPassword, logout,
     // data
-    accounts, transactions, savings, loans, beneficiaries, budgets, categories, settings,
+    accounts, transactions: activeTransactions, trashedTransactions, savings, loans, beneficiaries, budgets, categories, settings,
     loading, syncing, error, refresh,
     // CRUD
     addAccount, updateAccount, deleteAccount,
-    addTransaction, updateTransaction, deleteTransaction,
+    addTransaction, updateTransaction, deleteTransaction, restoreTransaction, permanentlyDeleteTransaction,
     addSaving, updateSaving, deleteSaving,
     addLoan, updateLoan, deleteLoan,
     addBeneficiary, updateBeneficiary, deleteBeneficiary,
