@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Target, Plus, Pencil, Trash2, PlusCircle, TrendingUp, Calendar, Home, Plane, GraduationCap, Car, Heart, Gem, Umbrella, Briefcase, Smartphone, Dumbbell, Music, Building, Gift } from 'lucide-react';
-import { fmtHTG, fmt, compoundSavings } from '../utils/finance';
+import { Target, Plus, Minus, Pencil, Trash2, PlusCircle, TrendingUp, Calendar, History, ChevronDown, ChevronUp, Home, Plane, GraduationCap, Car, Heart, Gem, Umbrella, Briefcase, Smartphone, Dumbbell, Music, Building, Gift } from 'lucide-react';
+import { fmtHTG, fmt, today, compoundSavings } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const GOAL_TYPES = [
@@ -88,9 +88,12 @@ function SavingsModal({ goal, onSave, onClose }) {
   );
 }
 
-function DepositModal({ goal, onSave, onClose }) {
+function DepositModal({ goal, defaultType='deposit', onSave, onClose }) {
   const { t } = useLanguage();
   const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(today());
+  const [type, setType] = useState(defaultType);
+  const isWithdraw = type==='withdrawal';
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{maxWidth:380}}>
@@ -99,10 +102,18 @@ function DepositModal({ goal, onSave, onClose }) {
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="fgrid">
+          <div className="fg">
+            <label className="fl">{t('savings.d_type')}</label>
+            <div className="flex g8">
+              <button type="button" className={`btn btn-sm ${!isWithdraw?'btn-primary':'btn-ghost'}`} style={{flex:1}} onClick={()=>setType('deposit')}><Plus size={12}/> {t('savings.d_typeDeposit')}</button>
+              <button type="button" className={`btn btn-sm ${isWithdraw?'btn-primary':'btn-ghost'}`} style={{flex:1}} onClick={()=>setType('withdrawal')}><Minus size={12}/> {t('savings.d_typeWithdrawal')}</button>
+            </div>
+          </div>
           <div className="fg"><label className="fl">{t('savings.d_amount')} ({goal.currency})</label><input className="fi" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus/></div>
+          <div className="fg"><label className="fl">{t('savings.d_date')}</label><input className="fi" type="date" value={date} onChange={e=>setDate(e.target.value)}/></div>
           <div className="flex g8" style={{justifyContent:'flex-end'}}>
             <button className="btn btn-ghost" onClick={onClose}>{t('savings.m_cancel')}</button>
-            <button className="btn btn-primary" onClick={()=>{if(amount){onSave(Number(amount));onClose();}}}>{t('savings.d_confirm')}</button>
+            <button className="btn btn-primary" onClick={()=>{if(amount&&date){onSave({amount:Number(amount),date,type});onClose();}}}>{t('savings.d_confirm')}</button>
           </div>
         </div>
       </div>
@@ -110,12 +121,16 @@ function DepositModal({ goal, onSave, onClose }) {
   );
 }
 
+const round2 = (n) => Math.round(n * 100) / 100;
+
 export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
   const { t, lang } = useLanguage();
   const [showModal,  setShowModal]  = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [depositing, setDepositing] = useState(null);
   const [selected,   setSelected]   = useState(null);
+  const [openHistory, setOpenHistory] = useState({});
+  const toggleHistory = (id) => setOpenHistory(h=>({...h,[id]:!h[id]}));
 
   const enriched = useMemo(()=>savings.map(g=>{
     const pct = Math.min(100,((Number(g.currentAmount)||0)/(Number(g.targetAmount)||1))*100);
@@ -183,8 +198,28 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
                 <div className="flex g8 mt12" onClick={e=>e.stopPropagation()}>
                   <button className="btn btn-primary btn-sm" onClick={()=>setDepositing(g)}><Plus size={12}/> {t('savings.add')}</button>
                   <button className="btn btn-ghost btn-sm" onClick={()=>{setEditing(g);setShowModal(true);}}><Pencil size={12}/> {t('savings.edit')}</button>
+                  {(g.history||[]).length>0 && (
+                    <button className="btn btn-ghost btn-sm" onClick={()=>toggleHistory(g.id)}>
+                      <History size={12}/> {t('savings.history')} {openHistory[g.id]?<ChevronUp size={12}/>:<ChevronDown size={12}/>}
+                    </button>
+                  )}
                   <button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm(t('savings.deleteConfirm')))onDelete(g.id);}}><Trash2 size={12}/></button>
                 </div>
+                {openHistory[g.id] && (g.history||[]).length>0 && (
+                  <div onClick={e=>e.stopPropagation()} style={{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10,display:'grid',gap:6}}>
+                    {[...(g.history||[])].sort((a,b)=>b.date.localeCompare(a.date)).map((h,i)=>(
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--text2)'}}>
+                        <span style={{display:'flex',alignItems:'center',gap:5}}>
+                          {h.type==='withdrawal'?<Minus size={11} style={{color:'var(--red)'}}/>:<Plus size={11} style={{color:'var(--g1)'}}/>}
+                          {new Date(h.date+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'fr-FR',{day:'2-digit',month:'short',year:'numeric'})}
+                        </span>
+                        <span style={{fontWeight:600,color:h.type==='withdrawal'?'var(--red)':'var(--g1)'}}>
+                          {h.type==='withdrawal'?'-':'+'}{fmt(h.amount,g.currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -233,7 +268,12 @@ export default function Savings({ savings, onAdd, onUpdate, onDelete }) {
       )}
 
       {showModal&&<SavingsModal goal={editing} onSave={handleSave} onClose={()=>{setShowModal(false);setEditing(null);}}/>}
-      {depositing&&<DepositModal goal={depositing} onSave={amt=>onUpdate(depositing.id,{currentAmount:(Number(depositing.currentAmount)||0)+amt})} onClose={()=>setDepositing(null)}/>}
+      {depositing&&<DepositModal goal={depositing} onSave={({amount,date,type})=>{
+        const signed = type==='withdrawal' ? -amount : amount;
+        const newAmount = round2(Math.max(0,(Number(depositing.currentAmount)||0)+signed));
+        const history = [...(depositing.history||[]), { date, amount, type }];
+        onUpdate(depositing.id,{ currentAmount:newAmount, history });
+      }} onClose={()=>setDepositing(null)}/>}
     </div>
   );
 }

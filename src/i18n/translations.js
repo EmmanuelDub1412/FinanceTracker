@@ -118,6 +118,8 @@ export const translations = {
       m_targetDate: 'Date cible', m_annualRate: 'Taux annuel (%)', m_cancel: 'Annuler',
       m_save: 'Enregistrer', m_create: 'Créer',
       d_title: 'Ajouter des fonds', d_amount: 'Montant', d_confirm: 'Confirmer',
+      d_type: 'Type de mouvement', d_typeDeposit: 'Dépôt', d_typeWithdrawal: 'Retrait', d_date: 'Date',
+      history: 'Historique',
     },
     loan: {
       title: 'Simulateur de Prêt', subtitle: 'Calculez et comparez vos scénarios de financement',
@@ -363,6 +365,8 @@ export const translations = {
       m_targetDate: 'Target date', m_annualRate: 'Annual rate (%)', m_cancel: 'Cancel',
       m_save: 'Save', m_create: 'Create',
       d_title: 'Add funds', d_amount: 'Amount', d_confirm: 'Confirm',
+      d_type: 'Movement type', d_typeDeposit: 'Deposit', d_typeWithdrawal: 'Withdrawal', d_date: 'Date',
+      history: 'History',
     },
     loan: {
       title: 'Loan Simulator', subtitle: 'Calculate and compare your financing scenarios',
