@@ -5,7 +5,7 @@ import {
   Briefcase, BarChart3, Wallet, Handshake, TrendingUp, ShoppingCart, Fuel, Car, Home, HeartPulse,
   GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw, HandCoins, Landmark,
 } from 'lucide-react';
-import { fmtHTG, fmt, toHTG, today, CATEGORIES, mergeCategories, findCategory } from '../utils/finance';
+import { fmtHTG, fmt, toHTG, convertAmount, today, CATEGORIES, mergeCategories, findCategory } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 import { uploadReceipt, deleteReceipt, genId } from '../firestoreApi';
 
@@ -206,6 +206,102 @@ function LinkLoanPrompt({ kind, data, onConfirm, onClose }) {
           <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
             <button className="btn btn-ghost" onClick={onClose}>{t('transactions.linkLoanSkip')}</button>
             <button className="btn btn-primary" disabled={!name.trim()} onClick={confirm}>{t('transactions.linkLoanConfirm')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const loanRemaining = (l) => (l.kind === 'loan' ? Number(l.remainingBalance) : Number(l.amount)) || 0;
+const round2 = (n) => Math.round(n * 100) / 100;
+
+// Apres l'ajout d'une transaction "Remboursement Dettes" (je rembourse) ou
+// "Remboursement Recu" (on me rembourse), propose de repartir ce montant sur
+// des prets/creances/dettes existants. La transaction est deja enregistree :
+// on met seulement a jour le solde et l'historique des elements choisis.
+function RepayLoanPrompt({ kind, data, candidates, rate, onConfirm, onClose }) {
+  const { t } = useLanguage();
+  const txAmount = Number(data.amount) || 0;
+  const acc = data.txType === 'income' ? data.creditAccount : data.debitAccount;
+  const benName = (data.beneficiary || '').trim().toLowerCase();
+  const matches = (l) => benName && (l.name || '').trim().toLowerCase() === benName;
+
+  // Pre-selection : les elements de la meme personne que le beneficiaire de
+  // la transaction ; le montant de la transaction est reparti dans l'ordre.
+  const [rows, setRows] = useState(() => {
+    let left = txAmount;
+    return candidates.map(l => {
+      const rem = loanRemaining(l);
+      const remInTx = convertAmount(rem, l.currency, data.currency, rate);
+      let alloc = 0;
+      if (matches(l) && left > 0) {
+        const part = Math.min(left, remInTx);
+        left = round2(left - part);
+        alloc = part >= remInTx ? rem : convertAmount(part, data.currency, l.currency, rate);
+      }
+      return { id: l.id, checked: alloc > 0, amount: alloc > 0 ? String(round2(alloc)) : '' };
+    });
+  });
+  const setRow = (i, patch) => setRows(rs => rs.map((r, j) => j === i ? { ...r, ...patch } : r));
+
+  const allocated = rows.reduce((s, r, i) => {
+    if (!r.checked) return s;
+    return s + convertAmount(Number(r.amount) || 0, candidates[i].currency, data.currency, rate);
+  }, 0);
+  const over = round2(allocated) > round2(txAmount);
+  const anyValid = rows.some((r, i) => r.checked && Number(r.amount) > 0 && Number(r.amount) <= loanRemaining(candidates[i]) + 0.01);
+
+  const confirm = () => {
+    const allocations = [];
+    rows.forEach((r, i) => {
+      const amt = Number(r.amount) || 0;
+      if (r.checked && amt > 0) allocations.push({ item: candidates[i], amount: Math.min(round2(amt), loanRemaining(candidates[i])), account: acc });
+    });
+    onConfirm(allocations);
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-hd">
+          <div className="modal-ttl"><HandCoins size={18} style={{ color: 'var(--g1)' }} /> {t('transactions.repayTitle')}</div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <div className="fgrid">
+          <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+            {kind === 'receivable' ? t('transactions.repayTextReceivable') : t('transactions.repayTextPayable')}
+          </div>
+          <div className="fb" style={{ fontSize: 12.5, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 8 }}>
+            <span>{t('transactions.repayTotal')}</span>
+            <b>{fmt(txAmount, data.currency)}</b>
+          </div>
+          <div style={{ display: 'grid', gap: 6, maxHeight: 300, overflowY: 'auto' }}>
+            {candidates.map((l, i) => (
+              <div key={l.id} style={{ padding: '8px 10px', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <label className="flex g8" style={{ cursor: 'pointer', alignItems: 'center' }}>
+                  <input type="checkbox" checked={rows[i].checked}
+                    onChange={e => setRow(i, { checked: e.target.checked, amount: e.target.checked && !rows[i].amount ? String(round2(loanRemaining(l))) : rows[i].amount })} />
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{l.name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text2)' }}>{fmt(loanRemaining(l), l.currency)}</span>
+                </label>
+                {rows[i].checked && (
+                  <div className="flex g8" style={{ marginTop: 6, alignItems: 'center' }}>
+                    <input className="fi" type="number" value={rows[i].amount} onChange={e => setRow(i, { amount: e.target.value })} placeholder="0" />
+                    <span style={{ fontSize: 12, color: 'var(--text3)' }}>{l.currency}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="fb" style={{ fontSize: 12.5, color: over ? 'var(--red)' : 'var(--text2)' }}>
+            <span>{t('transactions.repayAllocated')}</span>
+            <b>{fmt(round2(allocated), data.currency)}</b>
+          </div>
+          {over && <div style={{ fontSize: 12, color: 'var(--red)' }}>{t('transactions.repayOver')}</div>}
+          <div className="flex g8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose}>{t('transactions.repaySkip')}</button>
+            <button className="btn btn-primary" disabled={!anyValid || over} onClick={confirm}>{t('transactions.repayConfirm')}</button>
           </div>
         </div>
       </div>
@@ -587,7 +683,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
   );
 }
 
-export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete, onAddLoan, trashedTransactions=[], onRestore, onPermanentDelete }) {
+export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete, onAddLoan, loans=[], onUpdateLoan, trashedTransactions=[], onRestore, onPermanentDelete }) {
   const { t, tId, lang } = useLanguage();
   const allCats = useMemo(()=>mergeCategories(categories),[categories]);
   const catLabelOf = (id) => tId('categories', id, findCategory(id, categories).label);
@@ -672,6 +768,10 @@ export default function Transactions({ transactions, accounts, settings, categor
   // qui ne sont pas lies automatiquement.
   const LOAN_LINK_KIND = { 'DEP-PRE': 'receivable', 'REV-EMP': 'payable' };
   const [linkPrompt, setLinkPrompt] = useState(null);
+  // Categories de remboursement : on propose de les imputer sur des
+  // prets/creances/dettes existants (voir RepayLoanPrompt).
+  const REPAY_KINDS = { 'DEP-REM': { kind: 'payable', kinds: ['payable', 'loan'] }, 'REV-CRE': { kind: 'receivable', kinds: ['receivable'] } };
+  const [repayPrompt, setRepayPrompt] = useState(null);
 
   const handleSave = (data)=>{
     if (editing) {
@@ -680,6 +780,11 @@ export default function Transactions({ transactions, accounts, settings, categor
       onAdd(data);
       const kind = LOAN_LINK_KIND[data.category];
       if (kind && onAddLoan) setLinkPrompt({ kind, data });
+      const repay = REPAY_KINDS[data.category];
+      if (repay && onUpdateLoan) {
+        const candidates = loans.filter(l => repay.kinds.includes(l.kind) && loanRemaining(l) > 0.01);
+        if (candidates.length) setRepayPrompt({ kind: repay.kind, data, candidates });
+      }
     }
     setShowModal(false);setEditing(null);
   };
@@ -858,6 +963,17 @@ export default function Transactions({ transactions, accounts, settings, categor
       {linkPrompt&&<LinkLoanPrompt kind={linkPrompt.kind} data={linkPrompt.data}
         onConfirm={(payload)=>{ onAddLoan(payload); setLinkPrompt(null); }}
         onClose={()=>setLinkPrompt(null)}/>}
+      {repayPrompt&&<RepayLoanPrompt kind={repayPrompt.kind} data={repayPrompt.data} candidates={repayPrompt.candidates}
+        rate={Number(settings?.usdToHtg)||130}
+        onConfirm={(allocations)=>{
+          allocations.forEach(({item, amount, account})=>{
+            const history = [...(item.paymentHistory||[]), { date: repayPrompt.data.date, amount, account: account||'' }];
+            if (item.kind === 'loan') onUpdateLoan(item.id, { remainingBalance: Math.max(0, round2((Number(item.remainingBalance)||0) - amount)), paymentHistory: history });
+            else onUpdateLoan(item.id, { amount: Math.max(0, round2((Number(item.amount)||0) - amount)), paymentHistory: history });
+          });
+          setRepayPrompt(null);
+        }}
+        onClose={()=>setRepayPrompt(null)}/>}
       {showTrash&&<TrashModal items={trashedTransactions} accMap={accMap} catLabelOf={catLabelOf}
         onRestore={onRestore} onPermanentDelete={onPermanentDelete} onClose={()=>setShowTrash(false)}/>}
 
