@@ -29,7 +29,13 @@ const NAV = [
   {id:'settings',     labelKey:'nav.settings',     Icon:Cog,             group:'system'},
 ];
 export default function App() {
-  const [page, setPage] = useState('dashboard');
+  // La page active est memorisee pour qu'un rafraichissement du navigateur
+  // reste sur la meme page au lieu de revenir au tableau de bord.
+  const [page, setPage] = useState(() => {
+    const saved = localStorage.getItem('fintrack_page');
+    return NAV.some(n => n.id === saved) ? saved : 'dashboard';
+  });
+  useEffect(() => { localStorage.setItem('fintrack_page', page); }, [page]);
   const [navOpen, setNavOpen] = useState(false);
   // Repli du panneau de menu (desktop) : preference persistee pour que
   // l'utilisateur n'ait pas a la refaire a chaque ouverture de l'app.
