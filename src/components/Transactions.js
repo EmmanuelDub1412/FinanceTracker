@@ -496,7 +496,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
               </select>
             </div>
             <div className="fg">
-              <label className="fl">{t('transactions.beneficiary')}</label>
+              <label className="fl">{form.txType==='income'?t('transactions.source'):t('transactions.beneficiary')}</label>
               {addingBen ? (
                 <div className="flex g8">
                   <input className="fi" autoFocus value={newBenName} onChange={e=>setNewBenName(e.target.value)}
