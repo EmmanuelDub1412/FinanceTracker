@@ -780,10 +780,15 @@ export default function Transactions({ transactions, accounts, settings, categor
       onAdd(data);
       const kind = LOAN_LINK_KIND[data.category];
       if (kind && onAddLoan) setLinkPrompt({ kind, data });
-      const repay = REPAY_KINDS[data.category];
-      if (repay && onUpdateLoan) {
-        const candidates = loans.filter(l => repay.kinds.includes(l.kind) && loanRemaining(l) > 0.01);
-        if (candidates.length) setRepayPrompt({ kind: repay.kind, data, candidates });
+      // Declenche par la categorie de remboursement, OU par un revenu/une
+      // depense dont la source/le beneficiaire porte le nom d'une
+      // creance/dette ouverte (peu importe la categorie choisie).
+      if (!kind && onUpdateLoan && (data.txType === 'income' || data.txType === 'expense')) {
+        const repay = REPAY_KINDS[data.category] || (data.txType === 'income' ? REPAY_KINDS['REV-CRE'] : REPAY_KINDS['DEP-REM']);
+        const open = loans.filter(l => repay.kinds.includes(l.kind) && loanRemaining(l) > 0.01);
+        const name = (data.beneficiary || '').trim().toLowerCase();
+        const nameMatch = name && open.some(l => (l.name || '').trim().toLowerCase() === name);
+        if (open.length && (REPAY_KINDS[data.category] || nameMatch)) setRepayPrompt({ kind: repay.kind, data, candidates: open });
       }
     }
     setShowModal(false);setEditing(null);
