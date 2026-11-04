@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, PiggyBank, Plus, Pencil, Trash2, Search, CheckCircle, Clock, XCircle,
-  Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown, Download, RotateCcw,
+  Paperclip, Camera, FileText, X, Loader2, ChevronUp, ChevronDown, Download, Upload, RotateCcw,
   Briefcase, BarChart3, Wallet, Handshake, TrendingUp, ShoppingCart, Fuel, Car, Home, HeartPulse,
   GraduationCap, Smartphone, PartyPopper, Shirt, CreditCard, Package, RefreshCw, HandCoins, Landmark,
 } from 'lucide-react';
 import { fmtHTG, fmt, toHTG, convertAmount, today, CATEGORIES, mergeCategories, findCategory } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 import { uploadReceipt, deleteReceipt, genId } from '../firestoreApi';
+import ImportCsvModal from './ImportCsvModal';
 
 const TYPE_ICON = { income: ArrowDownCircle, expense: ArrowUpCircle, transfer: ArrowLeftRight, savings: PiggyBank };
 const TYPE_CLS  = { income: 'on-income', expense: 'on-expense', transfer: 'on-transfer', savings: 'on-savings' };
@@ -683,7 +684,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
   );
 }
 
-export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onUpdate, onDelete, onAddLoan, loans=[], onUpdateLoan, trashedTransactions=[], onRestore, onPermanentDelete }) {
+export default function Transactions({ transactions, accounts, settings, categories=[], onAddCategory, beneficiaries=[], onAddBeneficiary, onDeleteBeneficiary, onAdd, onBulkAdd, onUpdate, onDelete, onAddLoan, loans=[], onUpdateLoan, trashedTransactions=[], onRestore, onPermanentDelete }) {
   const { t, tId, lang } = useLanguage();
   const allCats = useMemo(()=>mergeCategories(categories),[categories]);
   const catLabelOf = (id) => tId('categories', id, findCategory(id, categories).label);
@@ -699,6 +700,7 @@ export default function Transactions({ transactions, accounts, settings, categor
   const [sortDir,      setSortDir]    = useState('desc');
   const [dispCur,     setDispCur]     = useState('HTG');
   const [showTrash,   setShowTrash]   = useState(false);
+  const [showImport,  setShowImport]  = useState(false);
   const rate = Number(settings?.usdToHtg)||130;
   const fmtC = (v) => dispCur==='USD' ? fmt(v/rate,'USD') : fmt(v,'HTG');
 
@@ -836,6 +838,9 @@ export default function Transactions({ transactions, accounts, settings, categor
           <button className="lang-toggle" onClick={()=>setDispCur(c=>c==='HTG'?'USD':'HTG')} title="HTG / USD">
             {dispCur}
           </button>
+          <button className="btn btn-ghost" onClick={()=>setShowImport(true)} title={t('transactions.importCsv')}>
+            <Upload size={15}/> {t('transactions.importCsv')}
+          </button>
           <button className="btn btn-ghost" onClick={exportCsv} title={t('transactions.exportCsv')}>
             <Download size={15}/> {t('transactions.exportCsv')}
           </button>
@@ -968,6 +973,7 @@ export default function Transactions({ transactions, accounts, settings, categor
       {linkPrompt&&<LinkLoanPrompt kind={linkPrompt.kind} data={linkPrompt.data}
         onConfirm={(payload)=>{ onAddLoan(payload); setLinkPrompt(null); }}
         onClose={()=>setLinkPrompt(null)}/>}
+      {showImport&&<ImportCsvModal accounts={accounts} categories={categories} catLabelOf={catLabelOf} onImport={(list)=>onBulkAdd?.(list)} onClose={()=>setShowImport(false)}/>}
       {repayPrompt&&<RepayLoanPrompt kind={repayPrompt.kind} data={repayPrompt.data} candidates={repayPrompt.candidates}
         rate={Number(settings?.usdToHtg)||130}
         onConfirm={(allocations)=>{
