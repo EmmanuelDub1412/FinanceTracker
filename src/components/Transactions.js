@@ -973,7 +973,7 @@ export default function Transactions({ transactions, accounts, settings, categor
       {linkPrompt&&<LinkLoanPrompt kind={linkPrompt.kind} data={linkPrompt.data}
         onConfirm={(payload)=>{ onAddLoan(payload); setLinkPrompt(null); }}
         onClose={()=>setLinkPrompt(null)}/>}
-      {showImport&&<ImportCsvModal accounts={accounts} categories={categories} catLabelOf={catLabelOf} onImport={(list)=>onBulkAdd?.(list)} onClose={()=>setShowImport(false)}/>}
+      {showImport&&<ImportCsvModal accounts={accounts} categories={categories} catLabelOf={catLabelOf} loans={loans} beneficiaries={beneficiaries} rate={rate} onImport={(list,extras)=>onBulkAdd?.(list,extras)} onClose={()=>setShowImport(false)}/>}
       {repayPrompt&&<RepayLoanPrompt kind={repayPrompt.kind} data={repayPrompt.data} candidates={repayPrompt.candidates}
         rate={Number(settings?.usdToHtg)||130}
         onConfirm={(allocations)=>{

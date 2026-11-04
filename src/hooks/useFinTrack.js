@@ -174,8 +174,13 @@ export default function useFinTrack() {
   const addTransaction    = (data) => withSync(() => db.append('transactions', { ...data, id: genId() }));
   const updateTransaction = (id, data) => withSync(() => db.update('transactions', id, data));
   // Import en masse (CSV) : ajoute toutes les lignes puis ne recharge qu'une fois.
-  const addTransactionsBulk = (list) => withSync(async () => {
+  // `extras` : creances/dettes a creer, prets existants a mettre a jour
+  // (remboursements) et nouveaux beneficiaires, calcules par l'import.
+  const addTransactionsBulk = (list, extras = {}) => withSync(async () => {
     for (const data of list) await db.append('transactions', { ...data, id: genId() });
+    for (const l of (extras.newLoans || [])) await db.append('loans', { ...l, id: genId() });
+    for (const u of (extras.loanUpdates || [])) await db.update('loans', u.id, u.patch);
+    for (const b of (extras.newBeneficiaries || [])) await db.append('beneficiaries', { ...b, id: genId() });
   });
   // "Suppression" = corbeille : on marque la transaction comme supprimee au
   // lieu de l'effacer tout de suite, pour pouvoir la restaurer plus tard.
