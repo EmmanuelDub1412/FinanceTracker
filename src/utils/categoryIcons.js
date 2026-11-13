@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Tag, Briefcase, Building2, Landmark, Receipt, Wallet, Banknote, Truck, Wrench, Zap,
   Wifi, Plane, Stethoscope, Gift, ShoppingBag, Users, BookOpen, Shield, Utensils, Globe, Package,
+  Handshake, Repeat, Coins,
 } from 'lucide-react';
 
 // Icones minimalistes (lucide) proposees pour les categories personnalisees.
@@ -10,6 +11,7 @@ import {
 export const CUSTOM_CAT_ICONS = {
   Tag, Briefcase, Building2, Landmark, Receipt, Wallet, Banknote, Truck, Wrench, Zap,
   Wifi, Plane, Stethoscope, Gift, ShoppingBag, Users, BookOpen, Shield, Utensils, Globe,
+  Handshake, Repeat, Coins,
 };
 export const CUSTOM_CAT_ICON_KEYS = Object.keys(CUSTOM_CAT_ICONS);
 
