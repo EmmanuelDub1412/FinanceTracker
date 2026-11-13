@@ -9,6 +9,7 @@ import { fmtHTG, fmt, toHTG, convertAmount, today, CATEGORIES, mergeCategories, 
 import { useLanguage } from '../i18n/LanguageContext';
 import { uploadReceipt, deleteReceipt, genId } from '../firestoreApi';
 import ImportCsvModal from './ImportCsvModal';
+import { CUSTOM_CAT_ICON_KEYS, CustomCatIcon } from '../utils/categoryIcons';
 
 const TYPE_ICON = { income: ArrowDownCircle, expense: ArrowUpCircle, transfer: ArrowLeftRight, savings: PiggyBank };
 const TYPE_CLS  = { income: 'on-income', expense: 'on-expense', transfer: 'on-transfer', savings: 'on-savings' };
@@ -29,7 +30,6 @@ const getCatIcon = (id) => CAT_ICON[id] || null;
 // integrees utilisent des icones lucide via CAT_ICON ci-dessus ; celles
 // ajoutees par l'utilisateur n'ont pas d'icone lucide dediee, donc on laisse
 // choisir un emoji simple, rendu a cote des icones lucide).
-const CUSTOM_CAT_EMOJIS = ['🏷️','💡','🎯','🛠️','🎁','🐾','⚽','🎓','✈️','🏥','🎨','📷','📖','🚿','⚡','🧩'];
 const CAT_TYPES = ['income', 'expense', 'transfer', 'savings'];
 
 // Icone a afficher pour une option de categorie : lucide pour les
@@ -38,8 +38,7 @@ const CAT_TYPES = ['income', 'expense', 'transfer', 'savings'];
 function CatOptionIcon({ opt, size = 14 }) {
   const LucideIcon = getCatIcon(opt.id);
   if (LucideIcon) return <LucideIcon size={size} style={{ flexShrink: 0 }} />;
-  if (opt.icon) return <span style={{ fontSize: size, lineHeight: 1, flexShrink: 0 }}>{opt.icon}</span>;
-  return <Package size={size} style={{ flexShrink: 0 }} />;
+  return <CustomCatIcon icon={opt.icon} size={size} style={{ flexShrink: 0 }} />;
 }
 
 // Petit formulaire inline pour creer une nouvelle categorie (nom, type,
@@ -48,7 +47,7 @@ function CategoryCreateForm({ defaultType, onCreate, onCancel }) {
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [type, setType] = useState(defaultType || 'expense');
-  const [icon, setIcon] = useState(CUSTOM_CAT_EMOJIS[0]);
+  const [icon, setIcon] = useState(CUSTOM_CAT_ICON_KEYS[0]);
 
   const confirm = () => {
     const label = name.trim();
@@ -75,15 +74,16 @@ function CategoryCreateForm({ defaultType, onCreate, onCancel }) {
         ))}
       </div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-        {CUSTOM_CAT_EMOJIS.map(e => (
-          <button key={e} type="button" onClick={() => setIcon(e)}
+        {CUSTOM_CAT_ICON_KEYS.map(k => (
+          <button key={k} type="button" title={k} onClick={() => setIcon(k)}
             style={{
-              width: 26, height: 26, borderRadius: 6, cursor: 'pointer', fontSize: 14,
+              width: 28, height: 28, borderRadius: 6, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: `1px solid ${icon === e ? 'var(--g1)' : 'var(--border)'}`,
-              background: icon === e ? 'var(--g-bg)' : 'var(--bg3)',
+              border: `1px solid ${icon === k ? 'var(--g1)' : 'var(--border)'}`,
+              background: icon === k ? 'var(--g-bg)' : 'var(--bg3)',
+              color: icon === k ? 'var(--g1)' : 'var(--text2)',
             }}>
-            {e}
+            <CustomCatIcon icon={k} size={15} />
           </button>
         ))}
       </div>

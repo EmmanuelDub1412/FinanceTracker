@@ -6,9 +6,9 @@ import {
 import { fmt, fmtHTG, toHTG, CATEGORIES, mergeCategories, findCategory, weekRange, monthRange } from '../utils/finance';
 import { useLanguage } from '../i18n/LanguageContext';
 import { genId } from '../firestoreApi';
+import { CUSTOM_CAT_ICON_KEYS, CustomCatIcon } from '../utils/categoryIcons';
 
 const PERIODS = ['weekly', 'monthly'];
-const CUSTOM_CAT_EMOJIS = ['🏷️','💡','🎯','🛠️','🎁','🐾','⚽','🎓','✈️','🏥','🎨','📷','📖','🚿','⚡','🧩'];
 
 // Icones minimalistes (lucide) pour chaque categorie de depense, en
 // remplacement des emojis utilises ailleurs dans l'app. Les categories
@@ -22,8 +22,7 @@ const CAT_ICON = {
 function CatIcon({ cat, size = 15, style }) {
   const Lucide = CAT_ICON[cat.id];
   if (Lucide) return <Lucide size={size} style={style} />;
-  if (cat.icon) return <span style={{ fontSize: size, lineHeight: 1, ...style }}>{cat.icon}</span>;
-  return <Package size={size} style={style} />;
+  return <CustomCatIcon icon={cat.icon} size={size} style={style} />;
 }
 
 function BudgetModal({ item, categories, onAddCategory, onSave, onClose }) {
@@ -37,7 +36,7 @@ function BudgetModal({ item, categories, onAddCategory, onSave, onClose }) {
 
   const [addingCat, setAddingCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState(CUSTOM_CAT_EMOJIS[0]);
+  const [newCatIcon, setNewCatIcon] = useState(CUSTOM_CAT_ICON_KEYS[0]);
   const confirmNewCategory = () => {
     const label = newCatName.trim();
     if (!label) { setAddingCat(false); return; }
@@ -95,15 +94,16 @@ function BudgetModal({ item, categories, onAddCategory, onSave, onClose }) {
                   placeholder={t('transactions.newCategoryPh')} style={{ marginBottom: 6 }}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmNewCategory(); } if (e.key === 'Escape') setAddingCat(false); }} />
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {CUSTOM_CAT_EMOJIS.map(e => (
-                    <button key={e} type="button" onClick={() => setNewCatIcon(e)}
+                  {CUSTOM_CAT_ICON_KEYS.map(k => (
+                    <button key={k} type="button" title={k} onClick={() => setNewCatIcon(k)}
                       style={{
-                        width: 26, height: 26, borderRadius: 6, cursor: 'pointer', fontSize: 14,
+                        width: 28, height: 28, borderRadius: 6, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: `1px solid ${newCatIcon === e ? 'var(--g1)' : 'var(--border)'}`,
-                        background: newCatIcon === e ? 'var(--g-bg)' : 'var(--bg2)',
+                        border: `1px solid ${newCatIcon === k ? 'var(--g1)' : 'var(--border)'}`,
+                        background: newCatIcon === k ? 'var(--g-bg)' : 'var(--bg2)',
+                        color: newCatIcon === k ? 'var(--g1)' : 'var(--text2)',
                       }}>
-                      {e}
+                      <CustomCatIcon icon={k} size={15} />
                     </button>
                   ))}
                 </div>
