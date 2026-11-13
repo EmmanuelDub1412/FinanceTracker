@@ -432,6 +432,10 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
   const handleSave = async () => {
     if (!canSave) return;
     let payload = { ...form, amount: Number(form.amount), fee: Number(form.fee) || 0 };
+    // Un revenu n'a qu'un compte credite et une depense qu'un compte debite :
+    // on vide l'autre cote pour ne pas garder un ancien compte invisible.
+    if (payload.txType === 'income')  payload.debitAccount = '';
+    if (payload.txType === 'expense') payload.creditAccount = '';
     if (crossCurrency) {
       payload.creditAmount = Number(form.creditAmount) || 0;
     } else if ('creditAmount' in payload) {

@@ -42,12 +42,25 @@ export const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep
 // eventuels (`fee`), toujours prelevees du cote debite quand il y en a un
 // (virement/depense/epargne), ou deduites du montant credite sinon (revenu
 // avec frais de depot, ex. frais bancaires sur un versement).
+// Comptes reellement concernes par une transaction, selon son type : un
+// revenu ne touche que son compte credite et une depense que son compte
+// debite, meme si un ancien compte reste enregistre de l'autre cote (cela
+// arrivait quand on changeait le type d'une transaction en la modifiant).
+const effAccounts = (t) => ({
+  debit:  t.txType === 'income'  ? '' : (t.debitAccount  || ''),
+  credit: t.txType === 'expense' ? '' : (t.creditAccount || ''),
+});
+const touchesAccount = (t, accountId) => {
+  const { debit, credit } = effAccounts(t);
+  return debit === accountId || credit === accountId;
+};
 const applyTxToBalance = (balance, t, accountId) => {
-  if (t.creditAccount === accountId) {
-    const feeOnCredit = !t.debitAccount ? (Number(t.fee) || 0) : 0;
+  const { debit, credit } = effAccounts(t);
+  if (credit === accountId) {
+    const feeOnCredit = !debit ? (Number(t.fee) || 0) : 0;
     balance += (Number(t.creditAmount ?? t.amount) || 0) - feeOnCredit;
   }
-  if (t.debitAccount === accountId) {
+  if (debit === accountId) {
     balance -= (Number(t.amount) || 0) + (Number(t.fee) || 0);
   }
   return balance;
@@ -55,7 +68,7 @@ const applyTxToBalance = (balance, t, accountId) => {
 export const computeBalance = (account, transactions) => {
   let balance = Number(account.initialBalance)||0;
   transactions
-    .filter(t=>(t.debitAccount===account.id||t.creditAccount===account.id)&&t.status==='confirmed')
+    .filter(t=>touchesAccount(t, account.id)&&t.status==='confirmed')
     .forEach(t=>{ balance = applyTxToBalance(balance, t, account.id); });
   return balance;
 };
@@ -65,7 +78,7 @@ export const computeBalance = (account, transactions) => {
 export const computeBalanceAsOf = (account, transactions, cutoffDate) => {
   let balance = Number(account.initialBalance)||0;
   transactions
-    .filter(t=>(t.debitAccount===account.id||t.creditAccount===account.id)&&t.status==='confirmed'&&t.date<=cutoffDate)
+    .filter(t=>touchesAccount(t, account.id)&&t.status==='confirmed'&&t.date<=cutoffDate)
     .forEach(t=>{ balance = applyTxToBalance(balance, t, account.id); });
   return balance;
 };
@@ -76,18 +89,19 @@ export const computeBalanceAsOf = (account, transactions, cutoffDate) => {
 // chaque mouvement confirme. Le premier point est toujours le solde de
 // depart du compte (avant toute transaction).
 export const accountHistory = (account, transactions) => {
-  const touching = transactions.filter(t=>t.debitAccount===account.id||t.creditAccount===account.id);
+  const touching = transactions.filter(t=>touchesAccount(t, account.id));
   const chrono = [...touching].sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||'').localeCompare(b.createdAt||''));
   let balance = Number(account.initialBalance)||0;
   const withRunning = chrono.map(t=>{
-    const direction = t.creditAccount===account.id ? 'in' : 'out';
+    const eff = effAccounts(t);
+    const direction = eff.credit===account.id ? 'in' : 'out';
     // Montant a afficher/appliquer du point de vue de CE compte : pour un
     // virement cross-devise, le cote credite utilise le montant converti.
     // Les frais (`fee`) sont a la charge du cote debite quand il y en a un,
     // sinon deduits du montant credite (frais de depot).
     const fee = Number(t.fee) || 0;
     const nativeAmount = direction==='in'
-      ? (Number(t.creditAmount ?? t.amount)||0) - (!t.debitAccount ? fee : 0)
+      ? (Number(t.creditAmount ?? t.amount)||0) - (!eff.debit ? fee : 0)
       : (Number(t.amount)||0) + fee;
     // Meme regle que computeBalance (applyTxToBalance) pour que le solde de
     // la carte du compte et le dernier solde de l'historique soient toujours
@@ -95,7 +109,7 @@ export const accountHistory = (account, transactions) => {
     // compte credite sont le meme compte n'a aucun effet sur le solde (hormis
     // les frais) ; on le signale avec `selfTransfer`.
     if(t.status==='confirmed') balance = applyTxToBalance(balance, t, account.id);
-    const selfTransfer = t.debitAccount===account.id && t.creditAccount===account.id;
+    const selfTransfer = eff.debit===account.id && eff.credit===account.id;
     return {...t,direction,nativeAmount,runningBalance:balance,selfTransfer};
   });
   return withRunning;
