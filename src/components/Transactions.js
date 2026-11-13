@@ -425,7 +425,7 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
   // Le choix du compte est obligatoire : compte de debit pour une depense/
   // epargne, compte de credit pour un revenu, les deux pour un virement.
   const accountOk = form.txType==='transfer'
-    ? !!(form.debitAccount && form.creditAccount)
+    ? !!(form.debitAccount && form.creditAccount && form.debitAccount!==form.creditAccount)
     : (form.txType==='income' ? !!form.creditAccount : !!form.debitAccount);
   const canSave = !!form.description && !!form.amount && accountOk;
 
@@ -522,6 +522,9 @@ function TxModal({ tx, accounts, settings, categories=[], onAddCategory, benefic
             </div>
           )}
 
+          {form.txType==='transfer' && form.debitAccount && form.debitAccount===form.creditAccount && (
+            <div style={{fontSize:12,color:'var(--red)'}}>{t('transactions.sameAccount')}</div>
+          )}
           {form.txType==='transfer' ? (
             <div className="frow">
               <div className="fg">

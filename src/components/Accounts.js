@@ -259,6 +259,7 @@ function AccountHistoryModal({ account, transactions, categories=[], onClose }) 
                           {isIn ? <ArrowDownCircle size={13} style={{color:'var(--g1)',flexShrink:0}}/> : <ArrowUpCircle size={13} style={{color:'var(--red)',flexShrink:0}}/>}
                           <span style={{fontWeight:600,fontSize:13}}>{tx.description}</span>
                         </div>
+                        {tx.selfTransfer && <div style={{fontSize:11,color:'var(--red)',marginTop:2}}>{t('accounts.selfTransferNote')}</div>}
                       </td>
                       <td><span style={{fontSize:12,color:'var(--text2)'}}>{catLabel}</span></td>
                       <td className="tr tx-out" style={{fontWeight:700,fontSize:13}}>{!isIn && fmt(Number(tx.nativeAmount),account.currency)}</td>

@@ -89,10 +89,14 @@ export const accountHistory = (account, transactions) => {
     const nativeAmount = direction==='in'
       ? (Number(t.creditAmount ?? t.amount)||0) - (!t.debitAccount ? fee : 0)
       : (Number(t.amount)||0) + fee;
-    if(t.status==='confirmed'){
-      if(direction==='in') balance+=nativeAmount; else balance-=nativeAmount;
-    }
-    return {...t,direction,nativeAmount,runningBalance:balance};
+    // Meme regle que computeBalance (applyTxToBalance) pour que le solde de
+    // la carte du compte et le dernier solde de l'historique soient toujours
+    // identiques. Cas particulier : un virement dont le compte debite et le
+    // compte credite sont le meme compte n'a aucun effet sur le solde (hormis
+    // les frais) ; on le signale avec `selfTransfer`.
+    if(t.status==='confirmed') balance = applyTxToBalance(balance, t, account.id);
+    const selfTransfer = t.debitAccount===account.id && t.creditAccount===account.id;
+    return {...t,direction,nativeAmount,runningBalance:balance,selfTransfer};
   });
   return withRunning;
 };
